@@ -5,35 +5,86 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 
 # Page config for wide layout
-st.set_page_config(layout="wide", page_title="Twitter Sentiment Analyzer", page_icon="📊")
+st.set_page_config(layout="wide", page_title="Trendrrr")
+
+st.title("Twitter Sentiment Analyzer")
+col1, col2 = st.columns([1,1])
+
+with col1:
+    st.markdown("""
+    <div style='display: flex; align-items: center; height: 100%;'>
+    <div style='font-size:48px; color:#ffffff; line-height:1.3; padding-top: 50px; color: #1A93DE; font-weight: bold;'>
+        Innovate Insights Shaping Social Media Marketing. What's Trending???
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown("<div style='display: flex; justify-content: center; align-items: center; height: 100%;'>", unsafe_allow_html=True)
+    st.image("assets/image.png", use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # Custom CSS for some spacing and styling
 st.markdown("""
 <style>
+    body {
+        background-color: #040C18;
+        color: #ffffff;
+    }
+    .stApp {
+        background-color: #040C18;
+        color: #ffffff;
+    }
     .section-header {
         font-size: 24px;
         font-weight: 700;
         margin-bottom: 10px;
-        color: #4B4BFF;
+        color: #ffffff;
     }
     .subsection-header {
         font-size: 18px;
         font-weight: 600;
         margin-top: 20px;
         margin-bottom: 10px;
-        color: #1F77B4;
+        color: #ffffff;
     }
     .footer {
         text-align: center;
         font-size: 12px;
-        color: gray;
+        color: #1A93DE;
         margin-top: 40px;
         margin-bottom: 10px;
     }
+        h1 {
+        background: linear-gradient(89.97deg, #AE67FA 1.84%, #F49867 102.67%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-fill-color: transparent;
+    }
+    /* Input fields */
+    .stTextInput > div > input,
+    .stTextArea > div > textarea,
+    .stSelectbox > div,
+    .stRadio > div {
+        color: #ffffff !important;
+        background-color: #0B0F1A !important;
+
+    }
+    /* Buttons */
+    .stButton>button {
+        background-color: #1A93DE;
+        color: white;
+        border-radius: 5px;
+        padding: 0.5rem 1rem;
+        border: none;
+    }
+    .stButton>button:hover {
+        background-color: #167ABC;
+        color: white;
+    }
 </style>
 """, unsafe_allow_html=True)
-
-st.title("📊 Twitter Sentiment Analyzer")
 
 @st.cache_data
 def load_data(filepath):
