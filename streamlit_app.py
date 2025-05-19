@@ -40,10 +40,10 @@ st.markdown("""
         color: #ffffff;
     }
     .section-header {
-        font-size: 24px;
+        font-size: 28px;
         font-weight: 700;
         margin-bottom: 10px;
-        color: #ffffff;
+        color: #AE67FA;
     }
     .subsection-header {
         font-size: 18px;
@@ -172,6 +172,101 @@ def analyze_sentiment_with_distilbert(tweet):
     except requests.exceptions.RequestException as e:
         st.error(f"Error connecting to prediction API: {e}")
 
+def trend_duration_prediction():
+    st.markdown("---")
+    st.markdown('<div class="section-header">Trend Duration Prediction</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style='font-size:16px; margin-bottom:20px;'>
+    Predict how long a trend will last based on its characteristics and current engagement.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    with st.expander("Trend Duration Predictor", expanded=True):
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            trend_text = st.text_area("Describe the trend:", 
+                                    placeholder="e.g., 'New AI tool for content creation gaining popularity among marketers'",
+                                    height=100)
+            
+            col1a, col1b, col1c = st.columns(3)
+            with col1a:
+                category = st.selectbox("Category", 
+                                      ["Technology", "Fashion", "Business", "Social Media", "Health", "Sports", "Politics", "Other"])
+            with col1b:
+                current_engagement = st.selectbox("Current Engagement", 
+                                                ["Low", "Medium", "High", "Viral"])
+            with col1c:
+                confidence_threshold = st.slider("Confidence Level", 70, 95, 80)
+        
+        with col2:
+            st.markdown("<div style='margin-top:35px;'></div>", unsafe_allow_html=True)
+            if st.button("Predict Duration", key="predict_duration"):
+                if trend_text:
+                    with st.spinner("Analyzing trend..."):
+                        # Mock prediction - in a real app you'd use a proper model
+                        base_duration = {
+                            "Technology": 45,
+                            "Fashion": 30,
+                            "Business": 60,
+                            "Social Media": 20,
+                            "Health": 50,
+                            "Sports": 25,
+                            "Politics": 40,
+                            "Other": 35
+                        }.get(category, 30)
+                        
+                        engagement_multiplier = {
+                            "Low": 0.7,
+                            "Medium": 1.0,
+                            "High": 1.5,
+                            "Viral": 2.0
+                        }.get(current_engagement, 1.0)
+                        
+                        # Simple calculation based on text length
+                        text_length_factor = min(1.0, len(trend_text) / 200)
+                        
+                        predicted_duration = base_duration * engagement_multiplier * (1 + text_length_factor)
+                        confidence = confidence_threshold / 100
+                        
+                        # Display results
+                        st.success("Prediction complete!")
+                        
+                        col_result1, col_result2 = st.columns(2)
+                        with col_result1:
+                            st.metric("Predicted Duration", f"{int(predicted_duration)} days")
+                        with col_result2:
+                            st.metric("Confidence", f"{confidence*100:.1f}%")
+                        
+                        # Timeline visualization
+                        st.markdown("**Trend Timeline Projection**")
+                        timeline_df = pd.DataFrame({
+                            'Phase': ['Emerging', 'Growing', 'Peak', 'Declining', 'Fading'],
+                            'Days': [0, predicted_duration*0.3, predicted_duration*0.5, predicted_duration*0.8, predicted_duration],
+                            'Interest': [10, 60, 100, 40, 5]
+                        })
+                        
+                        fig = px.line(timeline_df, x='Days', y='Interest', 
+                                     title="Projected Trend Lifecycle",
+                                     markers=True,
+                                     line_shape='spline')
+                        fig.update_traces(line=dict(width=4))
+                        st.plotly_chart(fig, use_container_width=True)
+                        
+                        # Key factors
+                        st.markdown("**Key Influencing Factors**")
+                        factors = {
+                            "Category Impact": f"{category} (Base: {base_duration} days)",
+                            "Current Engagement": f"{current_engagement} (x{engagement_multiplier})",
+                            "Content Richness": f"{len(trend_text)} chars ({text_length_factor*100:.0f}% impact)",
+                            "Sentiment": "Positive" if "good" in trend_text.lower() or "great" in trend_text.lower() else "Neutral"
+                        }
+                        
+                        for factor, value in factors.items():
+                            st.write(f"🔹 **{factor}**: {value}")
+                else:
+                    st.error("Please describe the trend to get a prediction")
+
 def main():
     # Load Data
     df = load_data("data/India_with_vader.csv")
@@ -229,6 +324,7 @@ def main():
     st.dataframe(filtered_df[['username', 'tweet', 'Sentiment']].reset_index(drop=True), height=300)
 
     plot_trend_over_time(filtered_df, person)
+    trend_duration_prediction()
 
     #st.markdown('<div class="footer">Made with ❤️ using Streamlit | Twitter Sentiment Analyzer</div>', unsafe_allow_html=True)
 

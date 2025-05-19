@@ -1,6 +1,8 @@
-flask
-streamlit
-transformers
-torch
-pandas
-scikit-learn
+streamlit==1.32.0
+pandas==2.0.0
+numpy==1.24.0
+matplotlib==3.7.0
+plotly==5.13.0
+scipy==1.10.0
+statsmodels==0.13.5
+requests==2.31.0
