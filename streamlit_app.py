@@ -7,7 +7,7 @@ import plotly.express as px
 # Page config for wide layout
 st.set_page_config(layout="wide", page_title="Trendrrr")
 
-st.title("Twitter Sentiment Analyzer")
+st.title("Twitter Trend Analyzer")
 col1, col2 = st.columns([1,1])
 
 with col1:
@@ -15,9 +15,13 @@ with col1:
     <div style='display: flex; align-items: center; height: 100%;'>
     <div style='font-size:48px; color:#ffffff; line-height:1.3; padding-top: 50px; color: #1A93DE; font-weight: bold;'>
         Innovate Insights Shaping Social Media Marketing. What's Trending???
+        <div style='margin-top: 30px; font-size: 22px; font-weight: bold; color: #ffffff; padding-top: 5%; padding-bottom: 5%'>Want to know more?</div>
     </div>
     </div>
     """, unsafe_allow_html=True)
+
+    if st.button("Get Started"):
+        st.success("Let's go! Scroll down to explore the features. 🚀")
 
 with col2:
     st.markdown("<div style='display: flex; justify-content: center; align-items: center; height: 100%;'>", unsafe_allow_html=True)
@@ -69,7 +73,6 @@ st.markdown("""
     .stRadio > div {
         color: #ffffff !important;
         background-color: #0B0F1A !important;
-
     }
     /* Buttons */
     .stButton>button {
