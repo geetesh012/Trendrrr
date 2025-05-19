@@ -3,13 +3,24 @@ import time
 import threading
 
 def run_flask():
-    subprocess.run(["python", "app/flask_api.py"])
+    try:
+        # Run Flask API in a separate process (non-blocking)
+        flask_proc = subprocess.Popen(["python", "app/flask_api.py"])
+        # Wait for Flask process to finish (if ever)
+        flask_proc.wait()
+    except Exception as e:
+        print(f"Error running Flask: {e}")
 
 def run_streamlit():
-    time.sleep(3)  # Give Flask time to start
-    subprocess.run(["streamlit", "run", "streamlit_app.py"])
+    try:
+        # Wait a few seconds for Flask to start before running Streamlit
+        time.sleep(5)
+        streamlit_proc = subprocess.Popen(["streamlit", "run", "streamlit_app.py"])
+        streamlit_proc.wait()
+    except Exception as e:
+        print(f"Error running Streamlit: {e}")
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     flask_thread = threading.Thread(target=run_flask)
     streamlit_thread = threading.Thread(target=run_streamlit)
 

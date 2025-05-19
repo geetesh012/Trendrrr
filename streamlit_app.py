@@ -40,7 +40,7 @@ st.markdown("""
         color: #ffffff;
     }
     .section-header {
-        font-size: 28px;
+        font-size: 32px;
         font-weight: 700;
         margin-bottom: 10px;
         color: #AE67FA;
@@ -90,6 +90,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_data
+
 def load_data(filepath):
     try:
         data = pd.read_csv(filepath, engine='python').dropna(subset=['tweet'])
@@ -171,6 +172,88 @@ def analyze_sentiment_with_distilbert(tweet):
                 st.error(f"Prediction API returned status code {response.status_code}")
     except requests.exceptions.RequestException as e:
         st.error(f"Error connecting to prediction API: {e}")
+
+def get_trend_prediction(tweet):
+    """
+    Call the backend to get trend prediction, confidence,
+    reason why it will trend or not, and estimated trend duration in days.
+    """
+    try:
+        with st.spinner("Predicting trend likelihood..."):
+            res = requests.post("http://localhost:5000/predict_trend", json={"text": tweet})
+            if res.status_code == 200:
+                result = res.json()
+                # Expected keys: will_trend (bool), confidence (float), explanation (str), trend_duration_days (int)
+                will_trend = result.get("will_trend", False)
+                confidence = result.get("confidence", 0)
+                explanation = result.get("explanation", "No detailed explanation provided.")
+                duration = result.get("trend_duration_days", 0)
+                return will_trend, confidence, explanation, duration
+            else:
+                st.error(f"Trend API error: {res.status_code}")
+                return None, 0, "API error occurred", 0
+    except Exception as e:
+        st.error(f"Connection error: {e}")
+        return None, 0, "Connection error", 0
+
+
+def analyze_sentiment_with_distilbert(tweet):
+    try:
+        with st.spinner('Analyzing sentiment...'):
+            response = requests.post("http://localhost:5000/predict_sentiment", json={"text": tweet})
+            if response.status_code == 200:
+                result = response.json()
+                st.success(f"Predicted Sentiment: *{result.get('sentiment', 'Unknown')}*")
+            else:
+                st.error(f"API error: {response.status_code}")
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error: {e}")
+
+# ---------------------- Visualizations ------------------------
+def plot_sentiment_distribution(df):
+    sentiment_counts = df['Sentiment'].value_counts()
+    st.markdown('<div class="subsection-header">Sentiment Distribution</div>', unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        with st.expander("Bar Chart"):
+            fig, ax = plt.subplots(figsize=(5, 3))
+            sentiment_counts.plot(kind='bar', color=['green', 'orange', 'red'], ax=ax)
+            ax.set_xlabel("Sentiment")
+            ax.set_ylabel("Count")
+            ax.grid(axis='y', linestyle='--', alpha=0.7)
+            st.pyplot(fig)
+    with col2:
+        with st.expander("Pie Chart"):
+            fig, ax = plt.subplots(figsize=(5, 3))
+            ax.pie(sentiment_counts, labels=sentiment_counts.index, autopct='%1.1f%%',
+                   startangle=90, colors=['#2ca02c', '#ff7f0e', '#d62728'])
+            ax.axis('equal')
+            st.pyplot(fig)
+
+def plot_trend_over_time(df, person):
+    if 'date' not in df.columns:
+        st.info("No 'date' column found.")
+        return
+
+    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+    df = df.dropna(subset=['date'])
+
+    if df.empty:
+        st.info("No valid date data available.")
+        return
+
+    st.markdown('<div class="subsection-header">Tweet Trend Over Time</div>', unsafe_allow_html=True)
+    with st.expander("Tweet Frequency Over Time"):
+        trend_data = df.groupby(df['date'].dt.date).size().reset_index(name='Tweet Count')
+        fig_trend = px.line(trend_data, x='date', y='Tweet Count', title=f"Tweet Frequency Over Time for '{person}'")
+        st.plotly_chart(fig_trend, use_container_width=True)
+
+    if 'Sentiment' in df.columns:
+        with st.expander("Daily Tweet Sentiment Distribution"):
+            trend_sentiment = df.groupby([df['date'].dt.date, 'Sentiment']).size().reset_index(name='Count')
+            fig_stack = px.area(trend_sentiment, x='date', y='Count', color='Sentiment')
+            st.plotly_chart(fig_stack, use_container_width=True)
+
 
 def trend_duration_prediction():
     st.markdown("---")
@@ -272,6 +355,105 @@ def main():
     df = load_data("data/India_with_vader.csv")
     if df.empty:
         st.stop()
+    
+    st.markdown('<div class="section-header">Tweet Trend Prediction</div>', unsafe_allow_html=True)
+    trend_tweet = st.text_area("Enter a Tweet to Predict Trend", placeholder="e.g., Huge Black Friday deals on Amazon!")
+
+    if st.button("Predict Trend"):
+        if trend_tweet.strip():
+            will_trend, confidence, explanation, duration = get_trend_prediction(trend_tweet)
+            if will_trend is None:
+                st.error("Could not get trend prediction.")
+            else:
+                trend_str = "YES! This tweet is likely to TREND" if will_trend else "NO, this tweet is unlikely to trend."
+                st.success(trend_str)
+                st.info(f"Confidence: *{round(confidence * 100, 2)}%*")
+                st.markdown(f'<div class="explanation-box"><strong>Why:</strong> {explanation}</div>', unsafe_allow_html=True)
+                if will_trend:
+                    st.markdown(f"Estimated Trending Duration: *{duration} days*")
+
+        else:
+            st.warning("Please enter a tweet first.")
+
+    # -------- Divider --------
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+
+    # -------- Sentiment Analyzer Section --------
+    st.markdown('<div class="section-header">Sentiment Analyzer</div>', unsafe_allow_html=True)
+
+    df = load_data("data/India_with_vader.csv")
+    if df.empty:
+        st.stop()
+
+    # User input topic/person name
+    topic_input = st.text_input("Enter a Topic or Name to Analyze Sentiment", placeholder="e.g., Elon Musk")
+
+    sentiment_filter = st.radio("Filter Sentiment", ['All', 'Positive', 'Neutral', 'Negative'], horizontal=True)
+
+    if topic_input:
+        filtered_df = df[df['tweet'].str.contains(topic_input, case=False, na=False)]
+        if sentiment_filter != 'All':
+            filtered_df = filtered_df[filtered_df['Sentiment'].str.lower() == sentiment_filter.lower()]
+
+        if filtered_df.empty:
+            st.warning("No matching tweets found.")
+            return
+
+        st.markdown(f"### Found {len(filtered_df)} tweets about *{topic_input}*")
+        plot_sentiment_distribution(filtered_df)
+
+        # -------- Divider --------
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.markdown("<hr>", unsafe_allow_html=True)
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+
+        # Select or enter tweet for sentiment
+        st.markdown('<div class="section-header">DistilBERT Sentiment Classifier</div>', unsafe_allow_html=True)
+        analyze_mode = st.radio("Choose Tweet Input", ["Select from Dataset", "Enter Your Own"], horizontal=True)
+
+        if analyze_mode == "Select from Dataset":
+            selected_tweet = st.selectbox("Tweet", filtered_df['tweet'].tolist())
+        else:
+            selected_tweet = st.text_area("Enter Tweet for Sentiment")
+
+        if st.button("Analyze Sentiment"):
+            if selected_tweet.strip():
+                analyze_sentiment_with_distilbert(selected_tweet)
+            else:
+                st.warning("Please enter or select a tweet.")
+
+        st.markdown('<div class="section-header">Filtered Tweets</div>', unsafe_allow_html=True)
+        st.dataframe(filtered_df[['username', 'tweet', 'Sentiment']].reset_index(drop=True), height=300)
+
+        plot_trend_over_time(filtered_df, topic_input)
+
+    else:
+        st.info("Please enter a topic or name to continue sentiment analysis.")
+
+    # -------- Divider --------
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
 
     st.markdown('<div class="section-header">Filter Tweets</div>', unsafe_allow_html=True)
 
@@ -306,6 +488,17 @@ def main():
 
     # Sentiment Distribution Plots
     plot_sentiment_distribution(filtered_df)
+
+        # -------- Divider --------
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
 
     st.markdown('<div class="section-header">DistilBERT Sentiment Analysis</div>', unsafe_allow_html=True)
 
