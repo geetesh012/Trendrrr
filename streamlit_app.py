@@ -3,6 +3,8 @@ import pandas as pd
 import requests
 import matplotlib.pyplot as plt
 import plotly.express as px
+import http.client
+import json
 
 # Page config for wide layout
 st.set_page_config(layout="wide", page_title="Trendrrr")
@@ -518,6 +520,122 @@ def main():
 
     plot_trend_over_time(filtered_df, person)
     trend_duration_prediction()
+
+                # -------- Divider --------
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+
+    st.markdown('<div class="section-header">Real or Fake User</div>', unsafe_allow_html=True)
+
+    user_input = st.text_area("Enter Username", placeholder = "Example: narendramodi , elonmusk , FabrizioRomano")
+
+    if st.button("Check Bot Scores") and user_input:
+        # Clean and prepare the usernames
+        usernames = [uname.strip().lstrip('@') for uname in user_input.split(',') if uname.strip()]
+
+        payload = json.dumps({
+            "usernames": usernames
+        })
+
+        headers = {
+            'x-rapidapi-key': "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",  
+            'x-rapidapi-host': "botometer-pro.p.rapidapi.com",
+            'Content-Type': "application/json"
+        }
+
+        try:
+            with st.spinner("Fetching bot scores..."):
+                conn = http.client.HTTPSConnection("botometer-pro.p.rapidapi.com")
+                conn.request("POST", "/botometer-x/get_botscores_in_batch", payload, headers)
+
+                res = conn.getresponse()
+                data = res.read()
+                result = json.loads(data.decode("utf-8"))
+
+                parsed = [
+                {
+                    "User ID": item.get("user_id", "N/A"),
+                    "Username": item.get("username", "N/A"),
+                    "Bot Score": round(item.get("bot_score", 0), 3)
+                }
+                for item in result
+            ]
+
+            df = pd.DataFrame(parsed)
+            st.success("Result:")
+            st.dataframe(df)
+
+        except Exception as e:
+            st.error(f"❌ Error occurred: {e}")
+
+# | **Bot Score** | **Interpretation**     |
+# | ------------- | ---------------------- |
+# | 0.0 - 0.3     | Likely human           |
+# | 0.3 - 0.6     | Suspicious / uncertain |
+# | 0.6 - 1.0     | Likely bot             |
+
+            # -------- Divider --------
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+
+    st.markdown('<div class="section-header">Twitter Trend By Location</div>', unsafe_allow_html=True)
+
+    locations = {
+        "India": 23424848,
+        "United States": 23424977,
+        "United Kingdom": 23424975,
+        "Canada": 23424775,
+        "Australia": 23424748,
+        "Japan": 23424856,
+        "Germany": 23424829,
+        "Brazil": 23424768
+    }
+
+    # Dropdown to select a location
+    selected_location = st.selectbox("Select a Location", list(locations.keys()))
+    selected_woeid = locations[selected_location]
+
+    if st.button("Get Trends"):
+        with st.spinner("Fetching Twitter trends..."):
+            try:
+                conn = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
+                headers = {
+                    'x-rapidapi-key': "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
+                    'x-rapidapi-host': "twitter241.p.rapidapi.com"
+                }
+
+                endpoint = f"/trends-by-location?woeid={selected_woeid}"
+                conn.request("GET", endpoint, headers=headers)
+                res = conn.getresponse()
+                data = res.read()
+                json_data = json.loads(data.decode("utf-8"))
+
+                trends = json_data["result"][0]["trends"][:20]
+
+                simplified_trends = []
+                for trend in trends:
+                    name = trend.get("name", "N/A")
+                    volume = trend.get("tweet_volume", "N/A")
+                    simplified_trends.append({"Name": name, "Tweet Volume": volume})
+
+                st.table(simplified_trends)
+
+            except Exception as e:
+                st.error(f"Error: {e}")
 
     #st.markdown('<div class="footer">Made with ❤️ using Streamlit | Twitter Sentiment Analyzer</div>', unsafe_allow_html=True)
 
