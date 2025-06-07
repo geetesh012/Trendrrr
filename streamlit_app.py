@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import http.client
 import json
+from transformers import GPT2LMHeadModel, GPT2Tokenizer
+import torch
 
 # Page config for wide layout
 st.set_page_config(layout="wide", page_title="Trendrrr")
@@ -352,6 +354,31 @@ def trend_duration_prediction():
                 else:
                     st.error("Please describe the trend to get a prediction")
 
+def load_gpt2():
+    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    model = GPT2LMHeadModel.from_pretrained("gpt2")
+    model.eval()
+    return tokenizer, model
+
+tokenizer, model = load_gpt2()
+
+def generate_overview(trend_name, max_length=100):
+    prompt = f"Provide a detailed explanation about the trending topic '{trend_name}'.\nExplanation:"
+    inputs = tokenizer.encode(prompt, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model.generate(
+            inputs,
+            max_length=max_length,
+            num_return_sequences=1,
+            do_sample=True,
+            top_k=50,
+            top_p=0.9,
+            temperature=0.7,
+            pad_token_id=tokenizer.eos_token_id
+        )
+    generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return generated_text.replace(prompt, "").strip()
+
 def main():
     # Load Data
     df = load_data("data/India_with_vader.csv")
@@ -624,15 +651,21 @@ def main():
                 data = res.read()
                 json_data = json.loads(data.decode("utf-8"))
 
-                trends = json_data["result"][0]["trends"][:20]
+                trends = json_data["result"][0]["trends"][:5]
 
                 simplified_trends = []
+                st.subheader(f"Top Trends in {selected_location}")
                 for trend in trends:
                     name = trend.get("name", "N/A")
                     volume = trend.get("tweet_volume", "N/A")
-                    simplified_trends.append({"Name": name, "Tweet Volume": volume})
+                    st.markdown(f"### 🔹 {name}")
+                    st.markdown(f"**Tweet Volume**: {volume if volume else 'Not Available'}")
 
-                st.table(simplified_trends)
+                    # Generate GPT-2 description
+                    with st.spinner("Generating description..."):
+                        description = generate_overview(name)
+                        st.markdown(f"**Overview**: {description}")
+                    st.markdown("---")
 
             except Exception as e:
                 st.error(f"Error: {e}")
