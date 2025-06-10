@@ -5,9 +5,15 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import http.client
 import json
+import random
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 import torch
+import numpy as np
+from datetime import datetime
+from faker import Faker
+from transformers import pipeline
 
+fake = Faker()
 # Page config for wide layout
 st.set_page_config(layout="wide", page_title="Trendrrr")
 
@@ -214,6 +220,7 @@ def analyze_sentiment_with_distilbert(tweet):
         st.error(f"Error: {e}")
 
 # ---------------------- Visualizations ------------------------
+
 def plot_sentiment_distribution(df):
     sentiment_counts = df['Sentiment'].value_counts()
     st.markdown('<div class="subsection-header">Sentiment Distribution</div>', unsafe_allow_html=True)
@@ -378,6 +385,121 @@ def generate_overview(trend_name, max_length=100):
         )
     generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
     return generated_text.replace(prompt, "").strip()
+
+
+@st.cache_resource
+def get_simulator():
+    return DeepfakeTrendSimulator()
+
+class DeepfakeTrendSimulator:
+    def __init__(self):
+        self.text_generator = pipeline("text-generation", model="gpt2")
+        self.influencers = self._generate_influencers(50)
+    
+    def _generate_influencers(self, count):
+        types = ["Celebrity", "Journalist", "Politician", "Expert", "Meme Page"]
+        return [
+            {
+                "handle": "@" + fake.user_name(),
+                "type": random.choice(types),
+                "followers": int(np.random.lognormal(10, 2)),
+                "credulity": random.uniform(0, 1),
+                "reach_multiplier": random.uniform(0.5, 3)
+            }
+            for _ in range(count)
+        ]
+    
+    def get_twitter_style(self, handle, count=5):
+        """Fetch real tweets for style analysis"""
+        conn = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
+        try:
+            conn.request(
+                "GET", 
+                f"/search-v2?type=Top&count={count}&query={handle.replace('@', '')}", 
+                headers={
+                    'x-rapidapi-key': "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
+                    'x-rapidapi-host': "twitter241.p.rapidapi.com"
+                }
+            )
+            res = conn.getresponse()
+            if res.status == 200:
+                data = json.loads(res.read().decode("utf-8"))
+                return [t["text"] for t in data.get("data", {}).get("tweets", [])]
+            return None
+        finally:
+            conn.close()
+    
+    def generate_tweet(self, seed_text, mimic_handle=None):
+        """Generate tweet with optional style imitation"""
+        if mimic_handle:
+            real_tweets = self.get_twitter_style(mimic_handle)
+            if real_tweets:
+                prompt = f"Generate a tweet in this style:\n" + "\n".join(real_tweets) + f"\n\nAbout: {seed_text}"
+            else:
+                prompt = f"Tweet in the style of {mimic_handle}: {seed_text}"
+        else:
+            prompt = f"Viral tweet about: {seed_text}"
+        
+        generated = self.text_generator(
+            prompt,
+            max_length=280,
+            num_return_sequences=1,
+            do_sample=True
+        )
+        return generated[0]["generated_text"]
+    
+    def simulate_spread(self, fake_tweet, hours=24):
+        """Simulate trend propagation"""
+        timeline = []
+        current_reach = 1
+        
+        for hour in range(hours):
+            hour_events = []
+            
+            # Influencer engagement
+            for influencer in self.influencers:
+                if random.random() < (influencer["credulity"] * 0.01):
+                    new_reach = int(influencer["followers"] * influencer["reach_multiplier"] * 0.001)
+                    current_reach += new_reach
+                    hour_events.append({
+                        "hour": hour,
+                        "account": influencer["handle"],
+                        "type": influencer["type"],
+                        "action": random.choice(["retweet", "quote tweet"]),
+                        "reach_added": new_reach
+                    })
+            
+            # Media pickup
+            if current_reach > 10000 and random.random() < 0.2:
+                outlet = random.choice(["CNN", "Fox News", "BuzzFeed"])
+                current_reach *= 2
+                hour_events.append({
+                    "hour": hour,
+                    "account": outlet,
+                    "type": "Media",
+                    "action": "reported",
+                    "reach_added": current_reach
+                })
+            
+            # Fact-checking
+            if hour > 4 and random.random() < (current_reach / 1000000):
+                debunker = random.choice(["@CommunityNotes", "@Snopes"])
+                hour_events.append({
+                    "hour": hour,
+                    "account": debunker,
+                    "type": "Fact-checker",
+                    "action": "debunked",
+                    "reach_added": -current_reach * 0.5
+                })
+                current_reach *= 0.5
+            
+            timeline.append({
+                "hour": hour,
+                "total_reach": current_reach,
+                "events": hour_events
+            })
+        
+        return timeline
 
 def main():
     # Load Data
@@ -669,6 +791,133 @@ def main():
 
             except Exception as e:
                 st.error(f"Error: {e}")
+
+            # -------- Divider --------
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+
+    st.markdown('<div class="section-header">Deepfake Trend</div>', unsafe_allow_html=True)
+    simulator = get_simulator()
+    
+    st.header("Simulation Controls")
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        seed_text = st.text_area(
+            "Trend seed:", 
+            "Breaking: Study finds chocolate helps weight loss",
+            help="Base content for the fake trend"
+        )
+        mimic_handle = st.text_input(
+            "Mimic account style (optional):", 
+            "",
+            help="e.g. @elonmusk"
+        )
+    
+    with col2:
+        simulation_hours = st.slider(
+            "Simulation duration (hours):",
+            6, 72, 24
+        )
+        run_simulation = st.button("Launch Simulation")
+
+    if run_simulation:
+        with st.spinner("Generating scenario..."):
+            # Generate fake content
+            fake_tweet = simulator.generate_tweet(seed_text, mimic_handle if mimic_handle else None)
+            
+            # Simulate spread
+            timeline = simulator.simulate_spread(fake_tweet, simulation_hours)
+            events = [e for t in timeline for e in t["events"]]
+            
+            # Calculate metrics
+            final_reach = timeline[-1]["total_reach"]
+            peak_reach = max(t["total_reach"] for t in timeline)
+            debunk_time = next((e["hour"] for e in events if e["type"] == "Fact-checker"), None)
+            
+            # Top amplifiers
+            amplifier_impact = {}
+            for e in events:
+                if e["type"] in ["Celebrity", "Journalist", "Politician"]:
+                    amplifier_impact[e["account"]] = amplifier_impact.get(e["account"], 0) + e["reach_added"]
+            top_amplifiers = sorted(amplifier_impact.items(), key=lambda x: x[1], reverse=True)[:3]
+        
+        # Results display
+        st.subheader("Generated Content")
+        with st.expander("View synthetic tweet"):
+            st.code(fake_tweet, language="text")
+            st.caption("⚠️ This is AI-generated content - not real")
+        
+        # Metrics
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Peak Reach", f"{peak_reach:,}")
+        col2.metric("Final Reach", f"{final_reach:,}")
+        col3.metric("Debunk Time", f"{debunk_time} hours" if debunk_time else "Not debunked")
+        
+        # Visualization
+        st.subheader("Spread Analysis")
+        fig, ax = plt.subplots(figsize=(10, 4))
+        hours = [t["hour"] for t in timeline]
+        reach = [t["total_reach"] for t in timeline]
+        ax.plot(hours, reach, marker='o', color='#1DA1F2')
+        
+        if debunk_time:
+            ax.axvline(x=debunk_time, color='red', linestyle='--', label='Debunked')
+            ax.text(debunk_time, max(reach)*0.8, "Fact-checked", rotation=90, color='red')
+        
+        ax.set_title("Estimated Reach Over Time")
+        ax.set_xlabel("Hours After Posting")
+        ax.set_ylabel("Potential Reach")
+        ax.grid(True, alpha=0.2)
+        st.pyplot(fig)
+        
+        # Event log
+        st.subheader("Key Events Timeline")
+        event_df = pd.DataFrame([
+            {
+                "Hour": e["hour"],
+                "Account": e["account"],
+                "Type": e["type"],
+                "Action": e["action"],
+                "Reach Impact": f"{e['reach_added']:,}"
+            } for e in events
+        ])
+        st.dataframe(
+            event_df.style.applymap(
+                lambda x: 'color: red' if x == "Fact-checker" else (
+                    'color: green' if x == "Media" else ''
+                ),
+                subset=["Type"]
+            ),
+            hide_index=True,
+            use_container_width=True
+        )
+        
+        # Amplifier analysis
+        st.subheader("Top Amplifiers")
+        if top_amplifiers:
+            for account, impact in top_amplifiers:
+                st.progress(
+                    min(impact/peak_reach, 1.0), 
+                    text=f"{account} (+{impact:,} reach)"
+                )
+        else:
+            st.info("No significant amplifiers detected")
+        
+        # Media coverage
+        st.subheader("Media Coverage")
+        if media_events := [e for e in events if e["type"] == "Media"]:
+            for e in media_events:
+                st.write(f"**{e['account']}** reported at hour {e['hour']} (+{e['reach_added']:,} reach)")
+        else:
+            st.info("No media coverage generated")
 
     #st.markdown('<div class="footer">Made with ❤️ using Streamlit | Twitter Sentiment Analyzer</div>', unsafe_allow_html=True)
 
