@@ -12,9 +12,14 @@ import numpy as np
 from datetime import datetime
 from faker import Faker
 from transformers import pipeline
+import nltk
+from urllib.parse import quote
 
 fake = Faker()
-# Page config for wide layout
+nltk.download('vader_lexicon')
+tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+model = GPT2LMHeadModel.from_pretrained('gpt2')
+
 st.set_page_config(layout="wide", page_title="Trendrrr")
 
 st.title("Twitter Trend Analyzer")
@@ -792,6 +797,109 @@ def main():
             except Exception as e:
                 st.error(f"Error: {e}")
 
+    NEWS_API_HOST = "news-api14.p.rapidapi.com"
+    NEWS_API_KEY = "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462"
+
+    st.markdown('<div class="section-header">Tweet Deep Analysis: Meaning, Context & Impact</div>', unsafe_allow_html=True)
+
+    # Tweet input area (formerly in sidebar)
+    tweet_text = st.text_area("Paste tweet text below for analysis:", height=150)
+
+    ANALYSIS_TEMPLATE = """
+    ###  Analysis Report
+
+    1. Meaning 
+    {meaning}
+
+    2. Context  
+    {context}
+
+    3. Why It Matters 
+    {contribution}
+
+    4. What It Leads To  
+    {impact}
+    """
+
+    # Get related news from API
+    def get_related_news(query):
+        try:
+            clean_query = quote(query[:100])
+            conn = http.client.HTTPSConnection(NEWS_API_HOST)
+            headers = {
+                'x-rapidapi-key': NEWS_API_KEY,
+                'x-rapidapi-host': NEWS_API_HOST
+            }
+            path = f"/v2/search?q={clean_query}&language=en&sortBy=relevance"
+            conn.request("GET", path, headers=headers)
+            res = conn.getresponse()
+            data = json.loads(res.read().decode("utf-8"))
+            return data.get('articles', [])[:3]
+        except Exception as e:
+            st.error(f"Error fetching news: {str(e)}")
+            return []
+
+    # Use GPT-2 to generate analysis
+    def generate_analysis(prompt):
+        inputs = tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True)
+        outputs = model.generate(
+            inputs.input_ids,
+            max_length=200,
+            num_return_sequences=1,
+            no_repeat_ngram_size=2,
+            early_stopping=True
+        )
+        return tokenizer.decode(outputs[0], skip_special_tokens=True).replace(prompt, "")
+
+    # Generate 4-part analysis
+    def generate_comprehensive_analysis(text, news_context=""):
+        meaning_prompt = f"Explain the literal and implied meaning of this tweet: '{text}'."
+        context_prompt = f"Provide historical, cultural or social context for this tweet: '{text}'. {news_context}"
+        contribution_prompt = f"Analyze how this tweet contributes to public discourse: '{text}'."
+        impact_prompt = f"Predict the potential real-world impact of this tweet: '{text}'."
+
+        return {
+            "meaning": generate_analysis(meaning_prompt),
+            "context": generate_analysis(context_prompt),
+            "contribution": generate_analysis(contribution_prompt),
+            "impact": generate_analysis(impact_prompt)
+        }
+
+    # Run full analysis
+    def run_analysis():
+        if not tweet_text:
+            st.warning("Please enter tweet text.")
+            return
+
+        with st.spinner("Analyzing tweet..."):
+            news_articles = get_related_news(tweet_text)
+            news_context = "\n".join([f"- {art['title']}" for art in news_articles]) if news_articles else "No recent news context found"
+            analysis = generate_comprehensive_analysis(tweet_text, news_context)
+
+            st.subheader("Original Tweet")
+            st.write(tweet_text)
+
+            st.subheader("AI-Based Analysis")
+            st.markdown(ANALYSIS_TEMPLATE.format(
+                meaning=analysis['meaning'],
+                context=analysis['context'],
+                contribution=analysis['contribution'],
+                impact=analysis['impact']
+            ))
+
+            if news_articles:
+                st.subheader("Related News")
+                for article in news_articles:
+                    with st.expander(article['title']):
+                        st.write(article.get('description', 'No description available'))
+                        if article.get('url'):
+                            st.markdown(f"[Read more]({article['url']})")
+
+    # Analyze button triggers analysis
+    if st.button("Analyze Tweet"):
+        run_analysis()
+    else: ()
+
             # -------- Divider --------
     st.write("")
     st.write("")
@@ -853,7 +961,7 @@ def main():
         st.subheader("Generated Content")
         with st.expander("View synthetic tweet"):
             st.code(fake_tweet, language="text")
-            st.caption("⚠️ This is AI-generated content - not real")
+            st.caption("This is AI-generated content - not real")
         
         # Metrics
         col1, col2, col3 = st.columns(3)
