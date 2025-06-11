@@ -506,6 +506,26 @@ class DeepfakeTrendSimulator:
         
         return timeline
 
+def extract_tweets_from_response(data):
+    tweets = []
+    try:
+        instructions = data["result"]["timeline"]["instructions"]
+        for instruction in instructions:
+            for entry in instruction.get("entries", []):
+                content = entry.get("content", {})
+                if content.get("entryType") == "TimelineTimelineItem":
+                    tweet_result = content.get("itemContent", {}).get("tweet_results", {}).get("result", {})
+                    legacy = tweet_result.get("legacy", {})
+                    user_info = tweet_result.get("core", {}).get("user_results", {}).get("result", {}).get("legacy", {})
+
+                    tweet_text = legacy.get("full_text", "No text available")
+                    username = user_info.get("screen_name", "unknown")
+
+                    tweets.append((username, tweet_text))
+    except Exception as e:
+        print(f"[Parser Error] {e}")
+    return tweets
+
 def main():
     # Load Data
     df = load_data("data/India_with_vader.csv")
@@ -779,21 +799,37 @@ def main():
                 json_data = json.loads(data.decode("utf-8"))
 
                 trends = json_data["result"][0]["trends"][:5]
-
-                simplified_trends = []
+                
                 st.subheader(f"Top Trends in {selected_location}")
                 for trend in trends:
                     name = trend.get("name", "N/A")
                     volume = trend.get("tweet_volume", "N/A")
+
                     st.markdown(f"### 🔹 {name}")
                     st.markdown(f"**Tweet Volume**: {volume if volume else 'Not Available'}")
 
-                    # Generate GPT-2 description
-                    with st.spinner("Generating description..."):
-                        description = generate_overview(name)
-                        st.markdown(f"**Overview**: {description}")
-                    st.markdown("---")
+                    with st.spinner(f"Fetching tweets for '{name}'..."):
+                        try:
+                            search_conn = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
+                            query = name.replace("#", "%23").replace(" ", "%20")
+                            search_endpoint = f"/search-v2?type=Top&count=10&query={query}"
+                            search_conn.request("GET", search_endpoint, headers=headers)
+                            search_res = search_conn.getresponse()
+                            search_data = search_res.read()
+                            search_json = json.loads(search_data.decode("utf-8"))
 
+                            tweets = extract_tweets_from_response(search_json)
+
+                            if tweets:
+                                for username, text in tweets[:3]:
+                                    st.markdown(f"**@{username}**: {text}")
+                                    st.markdown("---")
+                            else:
+                                st.info("No tweets found.")
+
+                        except Exception as tweet_error:
+                            st.error(f"Error fetching tweets: {tweet_error}")
+                            
             except Exception as e:
                 st.error(f"Error: {e}")
 
