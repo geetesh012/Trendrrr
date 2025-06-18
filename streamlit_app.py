@@ -1,6 +1,11 @@
 import streamlit as st
 import pandas as pd
 import requests
+import joblib
+import shap
+import streamlit.components.v1 as components
+import os
+import uuid
 import matplotlib.pyplot as plt
 import plotly.express as px
 import http.client
@@ -1062,6 +1067,150 @@ def main():
                 st.write(f"**{e['account']}** reported at hour {e['hour']} (+{e['reach_added']:,} reach)")
         else:
             st.info("No media coverage generated")
+
+            # -------- Divider --------
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+
+
+    # Load best model (e.g., XGBoost for SHAP explainability)
+    model = joblib.load("xgboost_trending.pkl")
+
+    st.markdown('<div class="section-header">Trend Prediction</div>', unsafe_allow_html=True)
+    st.markdown("""
+    Enter post details below and find out if your content is likely to trend based on past patterns across platforms like X, Instagram, YouTube, TikTok, etc.
+    """)
+
+    st.subheader("Search real tweet by username")
+    username = st.text_input("Enter Twitter username (without @):", value="elonmusk")
+    tweet_limit = st.slider("Number of latest tweets to check:", min_value=1, max_value=10, value=1)
+
+    auto_fill = False
+
+    if st.button("Fetch Latest Tweet"):
+        conn = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
+        headers = {
+            'x-rapidapi-key': "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
+            'x-rapidapi-host': "twitter241.p.rapidapi.com"
+        }
+        try:
+            conn.request("GET", f"/user/tweets?id={username}&count={tweet_limit}", headers=headers)
+            res = conn.getresponse()
+            data = json.loads(res.read().decode("utf-8"))
+
+            if 'tweets' not in data or not data['tweets']:
+                raise ValueError("No tweets found or invalid user.")
+
+            tweet_obj = data['tweets'][0]  # First tweet
+
+            st.success("Tweet data fetched successfully!")
+            st.write(f"*Tweet Text:* {tweet_obj.get('full_text', 'N/A')}")
+            # Auto-fill data
+            likes = tweet_obj.get('favorite_count', 0)
+            shares = tweet_obj.get('retweet_count', 0)
+            comments = tweet_obj.get('reply_count', 0)
+            views = tweet_obj.get('view_count', 1000)
+            created_at = pd.to_datetime(tweet_obj['created_at'])
+            post_date = created_at.date()
+            has_hashtag = 1 if tweet_obj.get('entities', {}).get('hashtags') else 0
+
+            # Set defaults
+            platform = "Twitter"
+            content_type = "Post"
+            region = "India"
+
+            auto_fill = True
+
+        except Exception as e:
+            st.error(f"Error fetching tweet: {e}")
+
+    st.markdown("---")
+    st.subheader("Or manually enter post details")
+
+    platform = st.selectbox("Platform", ["Instagram", "Twitter", "TikTok", "YouTube"])
+    content_type = st.selectbox("Content Type", ["Post/Tweet", "Video", "Shorts", "Story"])
+    region = st.selectbox("Region", ["India", "USA", "UK", "Brazil", "Australia", "Other"])
+
+    views = st.number_input("Views", min_value=0, step=1000, value=views if 'views' in locals() else 0)
+    likes = st.number_input("Likes", min_value=0, step=100, value=likes if 'likes' in locals() else 0)
+    shares = st.number_input("Shares", min_value=0, step=100, value=shares if 'shares' in locals() else 0)
+    comments = st.number_input("Comments", min_value=0, step=10, value=comments if 'comments' in locals() else 0)
+
+    has_hashtag = st.checkbox("Has Hashtag?", value=bool(has_hashtag) if 'has_hashtag' in locals() else True)
+    post_date = st.date_input("Post Date", value=post_date if 'post_date' in locals() else pd.to_datetime("today").date())
+
+    if st.button("Predict"):
+        platform_map = {"Instagram": 0, "Twitter": 1, "TikTok": 2, "YouTube": 3}
+        content_map = {"Post": 0, "Video": 1, "Shorts": 2, "Story": 3}
+        region_map = {"India": 0, "USA": 1, "UK": 2, "Brazil": 3, "Australia": 4, "Other": 5}
+
+        df_input = pd.DataFrame([{
+            "Platform": platform_map[platform],
+            "Content_Type": content_map[content_type],
+            "Region": region_map[region],
+            "Views": views,
+            "Likes": likes,
+            "Shares": shares,
+            "Comments": comments,
+            "Has_Hashtag": int(has_hashtag),
+            "Engagement_Rate": (likes + shares + comments) / (views + 1),
+            "Post_Year": post_date.year,
+            "Post_Month": post_date.month,
+            "Post_DayOfWeek": post_date.weekday(),
+            "Likes_per_View": likes / (views + 1),
+            "Shares_per_View": shares / (views + 1),
+            "Comments_per_View": comments / (views + 1),
+            "Platform_Region": platform_map[platform] * 10 + region_map[region]
+        }])
+
+        prediction = model.predict(df_input)[0]
+        confidence = model.predict_proba(df_input)[0][1 if prediction == 1 else 0]
+
+        st.subheader("Prediction Result")
+        st.markdown(f"*Trending:* {'✅ Yes' if prediction else '❌ No'}")
+        st.metric("Confidence", f"{confidence * 100:.2f}%")
+
+        if prediction:
+            st.success("Your post is likely to trend due to a high engagement rate and good platform-region timing.")
+        else:
+            st.warning("This post may not trend. Consider improving key areas below.")
+
+        suggestions = []
+        if likes / (views + 1) < 0.05:
+            suggestions.append("Increase likes through better content appeal or thumbnail.")
+        if shares / (views + 1) < 0.01:
+            suggestions.append("Make it more shareable — add humor, curiosity, or emotion.")
+        if not has_hashtag:
+            suggestions.append("You may test using a single relevant hashtag (optional).")
+        if post_date.weekday() in [5, 6]:
+            suggestions.append("Try posting on weekdays for better reach.")
+
+        if suggestions:
+            st.markdown("Suggestions to Improve")
+            for s in suggestions:
+                st.write(f"- {s}")
+
+        # --- SHAP Explainability ---
+        st.markdown("Why this prediction? (SHAP Explanation)")
+
+        explainer = shap.Explainer(model)
+        shap_values = explainer(df_input)
+
+        shap_id = uuid.uuid4().hex
+        shap_html_file = f"shap_{shap_id}.html"
+        shap.save_html(shap_html_file, shap.plots.force(shap_values[0], matplotlib=False))
+
+        with open(shap_html_file, "r", encoding="utf-8") as f:
+            components.html(f.read(), height=400, scrolling=True)
+
+        os.remove(shap_html_file)
 
     #st.markdown('<div class="footer">Made with ❤️ using Streamlit | Twitter Sentiment Analyzer</div>', unsafe_allow_html=True)
 
