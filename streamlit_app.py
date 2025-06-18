@@ -21,35 +21,42 @@ import nltk
 from urllib.parse import quote
 
 fake = Faker()
-nltk.download('vader_lexicon')
-tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-model = GPT2LMHeadModel.from_pretrained('gpt2')
+nltk.download("vader_lexicon")
+tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+model = GPT2LMHeadModel.from_pretrained("gpt2")
 
 st.set_page_config(layout="wide", page_title="Trendrrr")
 
 st.title("Twitter Trend Analyzer")
-col1, col2 = st.columns([1,1])
+col1, col2 = st.columns([1, 1])
 
 with col1:
-    st.markdown("""
+    st.markdown(
+        """
     <div style='display: flex; align-items: center; height: 100%;'>
     <div style='font-size:48px; color:#ffffff; line-height:1.3; padding-top: 50px; color: #1A93DE; font-weight: bold;'>
         Innovate Insights Shaping Social Media Marketing. What's Trending???
         <div style='margin-top: 30px; font-size: 22px; font-weight: bold; color: #ffffff; padding-top: 5%; padding-bottom: 5%'>Want to know more?</div>
     </div>
     </div>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )
 
     if st.button("Get Started"):
-        st.success("Let's go! Scroll down to explore the features. 🚀")
+        st.success("Let's go! Scroll down to explore the features.")
 
 with col2:
-    st.markdown("<div style='display: flex; justify-content: center; align-items: center; height: 100%;'>", unsafe_allow_html=True)
+    st.markdown(
+        "<div style='display: flex; justify-content: center; align-items: center; height: 100%;'>",
+        unsafe_allow_html=True,
+    )
     st.image("assets/image.png", use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # Custom CSS for some spacing and styling
-st.markdown("""
+st.markdown(
+    """
 <style>
     body {
         background-color: #040C18;
@@ -107,91 +114,114 @@ st.markdown("""
         color: white;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
+
 
 @st.cache_data
-
 def load_data(filepath):
     try:
-        data = pd.read_csv(filepath, engine='python').dropna(subset=['tweet'])
+        data = pd.read_csv(filepath, engine="python").dropna(subset=["tweet"])
         return data
     except Exception as e:
         st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
+
 def filter_tweets_by_person(df, person):
     if person:
-        return df[df['tweet'].str.contains(person, case=False, na=False)]
+        return df[df["tweet"].str.contains(person, case=False, na=False)]
     return df
+
 
 def filter_tweets_by_sentiment(df, sentiment):
-    if sentiment.lower() != 'all' and 'Sentiment' in df.columns:
-        return df[df['Sentiment'].str.lower() == sentiment.lower()]
+    if sentiment.lower() != "all" and "Sentiment" in df.columns:
+        return df[df["Sentiment"].str.lower() == sentiment.lower()]
     return df
 
+
 def plot_sentiment_distribution(df):
-    sentiment_counts = df['Sentiment'].value_counts()
-    st.markdown('<div class="subsection-header">Sentiment Distribution</div>', unsafe_allow_html=True)
+    sentiment_counts = df["Sentiment"].value_counts()
+    st.markdown(
+        '<div class="subsection-header">Sentiment Distribution</div>',
+        unsafe_allow_html=True,
+    )
 
     col1, col2 = st.columns(2)
 
     with col1:
         with st.expander("Bar Chart"):
-            fig_bar, ax_bar = plt.subplots(figsize=(5,3))
-            sentiment_counts.plot(kind='bar', color=['green', 'orange', 'red'], ax=ax_bar)
+            fig_bar, ax_bar = plt.subplots(figsize=(5, 3))
+            sentiment_counts.plot(
+                kind="bar", color=["green", "orange", "red"], ax=ax_bar
+            )
             ax_bar.set_xlabel("Sentiment")
             ax_bar.set_ylabel("Count")
-            ax_bar.grid(axis='y', linestyle='--', alpha=0.7)
+            ax_bar.grid(axis="y", linestyle="--", alpha=0.7)
             st.pyplot(fig_bar)
 
     with col2:
         with st.expander("Pie Chart"):
-            fig_pie, ax_pie = plt.subplots(figsize=(5,3))
-            ax_pie.pie(sentiment_counts, labels=sentiment_counts.index, autopct='%1.1f%%', startangle=90, colors=['#2ca02c','#ff7f0e','#d62728'])
-            ax_pie.axis('equal')
+            fig_pie, ax_pie = plt.subplots(figsize=(5, 3))
+            ax_pie.pie(
+                sentiment_counts,
+                labels=sentiment_counts.index,
+                autopct="%1.1f%%",
+                startangle=90,
+                colors=["#2ca02c", "#ff7f0e", "#d62728"],
+            )
+            ax_pie.axis("equal")
             st.pyplot(fig_pie)
 
-def plot_trend_over_time(df, person):
-    if 'date' not in df.columns:
-        st.info("No 'date' column found. Cannot show trend over time.")
-        return
 
-    df['date'] = pd.to_datetime(df['date'], errors='coerce')
-    df = df.dropna(subset=['date'])
+# def plot_trend_over_time(df, person):
+#     if 'date' not in df.columns:
+#         st.info("No 'date' column found. Cannot show trend over time.")
+#         return
 
-    if df.empty:
-        st.info("No valid date data available for trend analysis.")
-        return
+#     df['date'] = pd.to_datetime(df['date'], errors='coerce')
+#     df = df.dropna(subset=['date'])
 
-    st.markdown('<div class="subsection-header">Tweet Trend Over Time</div>', unsafe_allow_html=True)
+#     if df.empty:
+#         st.info("No valid date data available for trend analysis.")
+#         return
 
-    with st.expander("Tweet Frequency Over Time"):
-        trend_data = df.groupby(df['date'].dt.date).size().reset_index(name='Tweet Count')
-        fig_trend = px.line(trend_data, x='date', y='Tweet Count',
-                            title=f"Tweet Frequency Over Time for '{person}'",
-                            width=700, height=350)
-        st.plotly_chart(fig_trend, use_container_width=True)
+#     st.markdown('<div class="subsection-header">Tweet Trend Over Time</div>', unsafe_allow_html=True)
 
-    if 'Sentiment' in df.columns:
-        with st.expander("Daily Tweet Sentiment Distribution"):
-            trend_sentiment = df.groupby([df['date'].dt.date, 'Sentiment']).size().reset_index(name='Count')
-            fig_stack = px.area(trend_sentiment, x='date', y='Count', color='Sentiment',
-                                title="Daily Tweet Sentiment Distribution",
-                                line_group='Sentiment',
-                                width=700, height=350)
-            st.plotly_chart(fig_stack, use_container_width=True)
+#     with st.expander("Tweet Frequency Over Time"):
+#         trend_data = df.groupby(df['date'].dt.date).size().reset_index(name='Tweet Count')
+#         fig_trend = px.line(trend_data, x='date', y='Tweet Count',
+#                             title=f"Tweet Frequency Over Time for '{person}'",
+#                             width=700, height=350)
+#         st.plotly_chart(fig_trend, use_container_width=True)
+
+#     if 'Sentiment' in df.columns:
+#         with st.expander("Daily Tweet Sentiment Distribution"):
+#             trend_sentiment = df.groupby([df['date'].dt.date, 'Sentiment']).size().reset_index(name='Count')
+#             fig_stack = px.area(trend_sentiment, x='date', y='Count', color='Sentiment',
+#                                 title="Daily Tweet Sentiment Distribution",
+#                                 line_group='Sentiment',
+#                                 width=700, height=350)
+#             st.plotly_chart(fig_stack, use_container_width=True)
+
 
 def analyze_sentiment_with_distilbert(tweet):
     try:
-        with st.spinner('Analyzing sentiment with DistilBERT...'):
-            response = requests.post("http://localhost:5000/predict", json={"text": tweet})
+        with st.spinner("Analyzing sentiment with DistilBERT..."):
+            response = requests.post(
+                "http://localhost:5000/predict", json={"text": tweet}
+            )
             if response.status_code == 200:
                 result = response.json()
-                st.success(f"Predicted Sentiment (DistilBERT): **{result.get('sentiment', 'Unknown')}**")
+                st.success(
+                    f"Predicted Sentiment (DistilBERT): **{result.get('sentiment', 'Unknown')}**"
+                )
             else:
                 st.error(f"Prediction API returned status code {response.status_code}")
     except requests.exceptions.RequestException as e:
         st.error(f"Error connecting to prediction API: {e}")
+
 
 def get_trend_prediction(tweet):
     """
@@ -200,13 +230,17 @@ def get_trend_prediction(tweet):
     """
     try:
         with st.spinner("Predicting trend likelihood..."):
-            res = requests.post("http://localhost:5000/predict_trend", json={"text": tweet})
+            res = requests.post(
+                "http://localhost:5000/predict_trend", json={"text": tweet}
+            )
             if res.status_code == 200:
                 result = res.json()
                 # Expected keys: will_trend (bool), confidence (float), explanation (str), trend_duration_days (int)
                 will_trend = result.get("will_trend", False)
                 confidence = result.get("confidence", 0)
-                explanation = result.get("explanation", "No detailed explanation provided.")
+                explanation = result.get(
+                    "explanation", "No detailed explanation provided."
+                )
                 duration = result.get("trend_duration_days", 0)
                 return will_trend, confidence, explanation, duration
             else:
@@ -219,90 +253,135 @@ def get_trend_prediction(tweet):
 
 def analyze_sentiment_with_distilbert(tweet):
     try:
-        with st.spinner('Analyzing sentiment...'):
-            response = requests.post("http://localhost:5000/predict_sentiment", json={"text": tweet})
+        with st.spinner("Analyzing sentiment..."):
+            response = requests.post(
+                "http://localhost:5000/predict_sentiment", json={"text": tweet}
+            )
             if response.status_code == 200:
                 result = response.json()
-                st.success(f"Predicted Sentiment: *{result.get('sentiment', 'Unknown')}*")
+                st.success(
+                    f"Predicted Sentiment: *{result.get('sentiment', 'Unknown')}*"
+                )
             else:
                 st.error(f"API error: {response.status_code}")
     except requests.exceptions.RequestException as e:
         st.error(f"Error: {e}")
 
+
 # ---------------------- Visualizations ------------------------
 
+
 def plot_sentiment_distribution(df):
-    sentiment_counts = df['Sentiment'].value_counts()
-    st.markdown('<div class="subsection-header">Sentiment Distribution</div>', unsafe_allow_html=True)
+    sentiment_counts = df["Sentiment"].value_counts()
+    st.markdown(
+        '<div class="subsection-header">Sentiment Distribution</div>',
+        unsafe_allow_html=True,
+    )
     col1, col2 = st.columns(2)
     with col1:
         with st.expander("Bar Chart"):
             fig, ax = plt.subplots(figsize=(5, 3))
-            sentiment_counts.plot(kind='bar', color=['green', 'orange', 'red'], ax=ax)
+            sentiment_counts.plot(kind="bar", color=["green", "orange", "red"], ax=ax)
             ax.set_xlabel("Sentiment")
             ax.set_ylabel("Count")
-            ax.grid(axis='y', linestyle='--', alpha=0.7)
+            ax.grid(axis="y", linestyle="--", alpha=0.7)
             st.pyplot(fig)
     with col2:
         with st.expander("Pie Chart"):
             fig, ax = plt.subplots(figsize=(5, 3))
-            ax.pie(sentiment_counts, labels=sentiment_counts.index, autopct='%1.1f%%',
-                   startangle=90, colors=['#2ca02c', '#ff7f0e', '#d62728'])
-            ax.axis('equal')
+            ax.pie(
+                sentiment_counts,
+                labels=sentiment_counts.index,
+                autopct="%1.1f%%",
+                startangle=90,
+                colors=["#2ca02c", "#ff7f0e", "#d62728"],
+            )
+            ax.axis("equal")
             st.pyplot(fig)
 
-def plot_trend_over_time(df, person):
-    if 'date' not in df.columns:
+
+def plot_trend_over_time(df):
+    if "date" not in df.columns:
         st.info("No 'date' column found.")
         return
 
-    df['date'] = pd.to_datetime(df['date'], errors='coerce')
-    df = df.dropna(subset=['date'])
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"])
 
     if df.empty:
         st.info("No valid date data available.")
         return
 
-    st.markdown('<div class="subsection-header">Tweet Trend Over Time</div>', unsafe_allow_html=True)
-    with st.expander("Tweet Frequency Over Time"):
-        trend_data = df.groupby(df['date'].dt.date).size().reset_index(name='Tweet Count')
-        fig_trend = px.line(trend_data, x='date', y='Tweet Count', title=f"Tweet Frequency Over Time for '{person}'")
-        st.plotly_chart(fig_trend, use_container_width=True)
+    # st.markdown('<div class="subsection-header">Tweet Trend Over Time</div>', unsafe_allow_html=True)
+    # with st.expander("Tweet Frequency Over Time"):
+    #     trend_data = df.groupby(df['date'].dt.date).size().reset_index(name='Tweet Count')
+    #     fig_trend = px.line(trend_data, x='date', y='Tweet Count', title=f"Tweet Frequency Over Time for '{person}'")
+    #     st.plotly_chart(fig_trend, use_container_width=True)
 
-    if 'Sentiment' in df.columns:
-        with st.expander("Daily Tweet Sentiment Distribution"):
-            trend_sentiment = df.groupby([df['date'].dt.date, 'Sentiment']).size().reset_index(name='Count')
-            fig_stack = px.area(trend_sentiment, x='date', y='Count', color='Sentiment')
-            st.plotly_chart(fig_stack, use_container_width=True)
+    # if 'Sentiment' in df.columns:
+    #     with st.expander("Daily Tweet Sentiment Distribution"):
+    #         trend_sentiment = df.groupby([df['date'].dt.date, 'Sentiment']).size().reset_index(name='Count')
+    #         fig_stack = px.area(trend_sentiment, x='date', y='Count', color='Sentiment')
+    #         st.plotly_chart(fig_stack, use_container_width=True)
+
+    # -------- Divider --------
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
 
 
 def trend_duration_prediction():
-    st.markdown("---")
-    st.markdown('<div class="section-header">Trend Duration Prediction</div>', unsafe_allow_html=True)
-    st.markdown("""
+    st.markdown(
+        '<div class="section-header">Trend Duration Prediction</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
     <div style='font-size:16px; margin-bottom:20px;'>
     Predict how long a trend will last based on its characteristics and current engagement.
     </div>
-    """, unsafe_allow_html=True)
-    
+    """,
+        unsafe_allow_html=True,
+    )
+
     with st.expander("Trend Duration Predictor", expanded=True):
         col1, col2 = st.columns([2, 1])
-        
+
         with col1:
-            trend_text = st.text_area("Describe the trend:", 
-                                    placeholder="e.g., 'New AI tool for content creation gaining popularity among marketers'",
-                                    height=100)
-            
+            trend_text = st.text_area(
+                "Describe the trend:",
+                placeholder="e.g., 'New AI tool for content creation gaining popularity among marketers'",
+                height=100,
+            )
+
             col1a, col1b, col1c = st.columns(3)
             with col1a:
-                category = st.selectbox("Category", 
-                                      ["Technology", "Fashion", "Business", "Social Media", "Health", "Sports", "Politics", "Other"])
+                category = st.selectbox(
+                    "Category",
+                    [
+                        "Technology",
+                        "Fashion",
+                        "Business",
+                        "Social Media",
+                        "Health",
+                        "Sports",
+                        "Politics",
+                        "Other",
+                    ],
+                )
             with col1b:
-                current_engagement = st.selectbox("Current Engagement", 
-                                                ["Low", "Medium", "High", "Viral"])
+                current_engagement = st.selectbox(
+                    "Current Engagement", ["Low", "Medium", "High", "Viral"]
+                )
             with col1c:
                 confidence_threshold = st.slider("Confidence Level", 70, 95, 80)
-        
+
         with col2:
             st.markdown("<div style='margin-top:35px;'></div>", unsafe_allow_html=True)
             if st.button("Predict Duration", key="predict_duration"):
@@ -317,59 +396,89 @@ def trend_duration_prediction():
                             "Health": 50,
                             "Sports": 25,
                             "Politics": 40,
-                            "Other": 35
+                            "Other": 35,
                         }.get(category, 30)
-                        
+
                         engagement_multiplier = {
                             "Low": 0.7,
                             "Medium": 1.0,
                             "High": 1.5,
-                            "Viral": 2.0
+                            "Viral": 2.0,
                         }.get(current_engagement, 1.0)
-                        
+
                         # Simple calculation based on text length
                         text_length_factor = min(1.0, len(trend_text) / 200)
-                        
-                        predicted_duration = base_duration * engagement_multiplier * (1 + text_length_factor)
+
+                        predicted_duration = (
+                            base_duration
+                            * engagement_multiplier
+                            * (1 + text_length_factor)
+                        )
                         confidence = confidence_threshold / 100
-                        
+
                         # Display results
                         st.success("Prediction complete!")
-                        
+
                         col_result1, col_result2 = st.columns(2)
                         with col_result1:
-                            st.metric("Predicted Duration", f"{int(predicted_duration)} days")
+                            st.metric(
+                                "Predicted Duration", f"{int(predicted_duration)} days"
+                            )
                         with col_result2:
                             st.metric("Confidence", f"{confidence*100:.1f}%")
-                        
+
                         # Timeline visualization
                         st.markdown("**Trend Timeline Projection**")
-                        timeline_df = pd.DataFrame({
-                            'Phase': ['Emerging', 'Growing', 'Peak', 'Declining', 'Fading'],
-                            'Days': [0, predicted_duration*0.3, predicted_duration*0.5, predicted_duration*0.8, predicted_duration],
-                            'Interest': [10, 60, 100, 40, 5]
-                        })
-                        
-                        fig = px.line(timeline_df, x='Days', y='Interest', 
-                                     title="Projected Trend Lifecycle",
-                                     markers=True,
-                                     line_shape='spline')
+                        timeline_df = pd.DataFrame(
+                            {
+                                "Phase": [
+                                    "Emerging",
+                                    "Growing",
+                                    "Peak",
+                                    "Declining",
+                                    "Fading",
+                                ],
+                                "Days": [
+                                    0,
+                                    predicted_duration * 0.3,
+                                    predicted_duration * 0.5,
+                                    predicted_duration * 0.8,
+                                    predicted_duration,
+                                ],
+                                "Interest": [10, 60, 100, 40, 5],
+                            }
+                        )
+
+                        fig = px.line(
+                            timeline_df,
+                            x="Days",
+                            y="Interest",
+                            title="Projected Trend Lifecycle",
+                            markers=True,
+                            line_shape="spline",
+                        )
                         fig.update_traces(line=dict(width=4))
                         st.plotly_chart(fig, use_container_width=True)
-                        
+
                         # Key factors
                         st.markdown("**Key Influencing Factors**")
                         factors = {
                             "Category Impact": f"{category} (Base: {base_duration} days)",
                             "Current Engagement": f"{current_engagement} (x{engagement_multiplier})",
                             "Content Richness": f"{len(trend_text)} chars ({text_length_factor*100:.0f}% impact)",
-                            "Sentiment": "Positive" if "good" in trend_text.lower() or "great" in trend_text.lower() else "Neutral"
+                            "Sentiment": (
+                                "Positive"
+                                if "good" in trend_text.lower()
+                                or "great" in trend_text.lower()
+                                else "Neutral"
+                            ),
                         }
-                        
+
                         for factor, value in factors.items():
                             st.write(f"🔹 **{factor}**: {value}")
                 else:
                     st.error("Please describe the trend to get a prediction")
+
 
 def load_gpt2():
     tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
@@ -377,7 +486,9 @@ def load_gpt2():
     model.eval()
     return tokenizer, model
 
+
 tokenizer, model = load_gpt2()
+
 
 def generate_overview(trend_name, max_length=100):
     prompt = f"Provide a detailed explanation about the trending topic '{trend_name}'.\nExplanation:"
@@ -391,7 +502,7 @@ def generate_overview(trend_name, max_length=100):
             top_k=50,
             top_p=0.9,
             temperature=0.7,
-            pad_token_id=tokenizer.eos_token_id
+            pad_token_id=tokenizer.eos_token_id,
         )
     generated_text = tokenizer.decode(outputs[0], skip_special_tokens=True)
     return generated_text.replace(prompt, "").strip()
@@ -401,11 +512,12 @@ def generate_overview(trend_name, max_length=100):
 def get_simulator():
     return DeepfakeTrendSimulator()
 
+
 class DeepfakeTrendSimulator:
     def __init__(self):
         self.text_generator = pipeline("text-generation", model="gpt2")
         self.influencers = self._generate_influencers(50)
-    
+
     def _generate_influencers(self, count):
         types = ["Celebrity", "Journalist", "Politician", "Expert", "Meme Page"]
         return [
@@ -414,22 +526,22 @@ class DeepfakeTrendSimulator:
                 "type": random.choice(types),
                 "followers": int(np.random.lognormal(10, 2)),
                 "credulity": random.uniform(0, 1),
-                "reach_multiplier": random.uniform(0.5, 3)
+                "reach_multiplier": random.uniform(0.5, 3),
             }
             for _ in range(count)
         ]
-    
+
     def get_twitter_style(self, handle, count=5):
         """Fetch real tweets for style analysis"""
         conn = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
         try:
             conn.request(
-                "GET", 
-                f"/search-v2?type=Top&count={count}&query={handle.replace('@', '')}", 
+                "GET",
+                f"/search-v2?type=Top&count={count}&query={handle.replace('@', '')}",
                 headers={
-                    'x-rapidapi-key': "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
-                    'x-rapidapi-host': "twitter241.p.rapidapi.com"
-                }
+                    "x-rapidapi-key": "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
+                    "x-rapidapi-host": "twitter241.p.rapidapi.com",
+                },
             )
             res = conn.getresponse()
             if res.status == 200:
@@ -438,78 +550,86 @@ class DeepfakeTrendSimulator:
             return None
         finally:
             conn.close()
-    
+
     def generate_tweet(self, seed_text, mimic_handle=None):
         """Generate tweet with optional style imitation"""
         if mimic_handle:
             real_tweets = self.get_twitter_style(mimic_handle)
             if real_tweets:
-                prompt = f"Generate a tweet in this style:\n" + "\n".join(real_tweets) + f"\n\nAbout: {seed_text}"
+                prompt = (
+                    f"Generate a tweet in this style:\n"
+                    + "\n".join(real_tweets)
+                    + f"\n\nAbout: {seed_text}"
+                )
             else:
                 prompt = f"Tweet in the style of {mimic_handle}: {seed_text}"
         else:
             prompt = f"Viral tweet about: {seed_text}"
-        
+
         generated = self.text_generator(
-            prompt,
-            max_length=280,
-            num_return_sequences=1,
-            do_sample=True
+            prompt, max_length=280, num_return_sequences=1, do_sample=True
         )
         return generated[0]["generated_text"]
-    
+
     def simulate_spread(self, fake_tweet, hours=24):
         """Simulate trend propagation"""
         timeline = []
         current_reach = 1
-        
+
         for hour in range(hours):
             hour_events = []
-            
+
             # Influencer engagement
             for influencer in self.influencers:
                 if random.random() < (influencer["credulity"] * 0.01):
-                    new_reach = int(influencer["followers"] * influencer["reach_multiplier"] * 0.001)
+                    new_reach = int(
+                        influencer["followers"] * influencer["reach_multiplier"] * 0.001
+                    )
                     current_reach += new_reach
-                    hour_events.append({
-                        "hour": hour,
-                        "account": influencer["handle"],
-                        "type": influencer["type"],
-                        "action": random.choice(["retweet", "quote tweet"]),
-                        "reach_added": new_reach
-                    })
-            
+                    hour_events.append(
+                        {
+                            "hour": hour,
+                            "account": influencer["handle"],
+                            "type": influencer["type"],
+                            "action": random.choice(["retweet", "quote tweet"]),
+                            "reach_added": new_reach,
+                        }
+                    )
+
             # Media pickup
             if current_reach > 10000 and random.random() < 0.2:
                 outlet = random.choice(["CNN", "Fox News", "BuzzFeed"])
                 current_reach *= 2
-                hour_events.append({
-                    "hour": hour,
-                    "account": outlet,
-                    "type": "Media",
-                    "action": "reported",
-                    "reach_added": current_reach
-                })
-            
+                hour_events.append(
+                    {
+                        "hour": hour,
+                        "account": outlet,
+                        "type": "Media",
+                        "action": "reported",
+                        "reach_added": current_reach,
+                    }
+                )
+
             # Fact-checking
             if hour > 4 and random.random() < (current_reach / 1000000):
                 debunker = random.choice(["@CommunityNotes", "@Snopes"])
-                hour_events.append({
-                    "hour": hour,
-                    "account": debunker,
-                    "type": "Fact-checker",
-                    "action": "debunked",
-                    "reach_added": -current_reach * 0.5
-                })
+                hour_events.append(
+                    {
+                        "hour": hour,
+                        "account": debunker,
+                        "type": "Fact-checker",
+                        "action": "debunked",
+                        "reach_added": -current_reach * 0.5,
+                    }
+                )
                 current_reach *= 0.5
-            
-            timeline.append({
-                "hour": hour,
-                "total_reach": current_reach,
-                "events": hour_events
-            })
-        
+
+            timeline.append(
+                {"hour": hour, "total_reach": current_reach, "events": hour_events}
+            )
+
         return timeline
+
 
 def extract_tweets_from_response(data):
     tweets = []
@@ -519,9 +639,18 @@ def extract_tweets_from_response(data):
             for entry in instruction.get("entries", []):
                 content = entry.get("content", {})
                 if content.get("entryType") == "TimelineTimelineItem":
-                    tweet_result = content.get("itemContent", {}).get("tweet_results", {}).get("result", {})
+                    tweet_result = (
+                        content.get("itemContent", {})
+                        .get("tweet_results", {})
+                        .get("result", {})
+                    )
                     legacy = tweet_result.get("legacy", {})
-                    user_info = tweet_result.get("core", {}).get("user_results", {}).get("result", {}).get("legacy", {})
+                    user_info = (
+                        tweet_result.get("core", {})
+                        .get("user_results", {})
+                        .get("result", {})
+                        .get("legacy", {})
+                    )
 
                     tweet_text = legacy.get("full_text", "No text available")
                     username = user_info.get("screen_name", "unknown")
@@ -531,32 +660,200 @@ def extract_tweets_from_response(data):
         print(f"[Parser Error] {e}")
     return tweets
 
+
 def main():
-    # Load Data
-    df = load_data("data/India_with_vader.csv")
-    if df.empty:
-        st.stop()
-    
-    st.markdown('<div class="section-header">Tweet Trend Prediction</div>', unsafe_allow_html=True)
-    trend_tweet = st.text_area("Enter a Tweet to Predict Trend", placeholder="e.g., Huge Black Friday deals on Amazon!")
-
-    if st.button("Predict Trend"):
-        if trend_tweet.strip():
-            will_trend, confidence, explanation, duration = get_trend_prediction(trend_tweet)
-            if will_trend is None:
-                st.error("Could not get trend prediction.")
-            else:
-                trend_str = "YES! This tweet is likely to TREND" if will_trend else "NO, this tweet is unlikely to trend."
-                st.success(trend_str)
-                st.info(f"Confidence: *{round(confidence * 100, 2)}%*")
-                st.markdown(f'<div class="explanation-box"><strong>Why:</strong> {explanation}</div>', unsafe_allow_html=True)
-                if will_trend:
-                    st.markdown(f"Estimated Trending Duration: *{duration} days*")
-
-        else:
-            st.warning("Please enter a tweet first.")
-
     # -------- Divider --------
+    model = joblib.load("xgboost_trending.pkl")
+
+    st.markdown(
+        '<div class="section-header">Trend Prediction</div>', unsafe_allow_html=True
+    )
+    st.markdown(
+        """
+    Enter post details below and find out if your content is likely to trend based on past patterns across platforms like X, Instagram, YouTube, TikTok, etc.
+    """
+    )
+
+    # Twitter input
+    st.subheader("Search real tweet by username")
+    username = st.text_input("Enter Twitter username (without @):", value="elonmusk")
+    tweet_limit = st.slider(
+        "Number of latest tweets to check:", min_value=1, max_value=10, value=1
+    )
+
+    auto_fill = False
+
+    if st.button("Fetch Latest Tweet"):
+        try:
+            # Connect to Twitter API
+            conn = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
+            headers = {
+                "x-rapidapi-key": "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
+                "x-rapidapi-host": "twitter241.p.rapidapi.com",
+            }
+
+            conn.request(
+                "GET",
+                f"/user-tweets?user={username}&count={tweet_limit}",
+                headers=headers,
+            )
+            res = conn.getresponse()
+            data = json.loads(res.read().decode("utf-8"))
+
+            # Validate response
+            if "tweets" not in data or not data["tweets"]:
+                st.error("No tweets found or the user might be invalid.")
+            else:
+                tweet_obj = data["tweets"][0]  # First tweet
+
+                # Show tweet
+                st.success("Tweet data fetched successfully!")
+                st.markdown(f"**Tweet Text:** {tweet_obj.get('full_text', 'N/A')}")
+
+                # Extract key features
+                likes = tweet_obj.get("favorite_count", 0)
+                shares = tweet_obj.get("retweet_count", 0)
+                comments = tweet_obj.get("reply_count", 0)
+                views = tweet_obj.get("view_count", 1000)
+                created_at = pd.to_datetime(tweet_obj["created_at"])
+                post_date = created_at.date()
+                has_hashtag = 1 if tweet_obj.get("entities", {}).get("hashtags") else 0
+
+                # Fixed fields for simplicity
+                platform = "Twitter"
+                content_type = "Post"
+                region = "India"
+
+                auto_fill = True
+
+                # You can use the extracted variables to populate a prediction form next
+
+        except Exception as e:
+            st.error(f"Error fetching tweet: {e}")
+
+    st.markdown("---")
+    st.subheader("Or manually enter post details")
+
+    platform = st.selectbox("Platform", ["Instagram", "Twitter", "TikTok", "YouTube"])
+    content_type = st.selectbox(
+        "Content Type", ["Post/Tweet", "Video", "Shorts", "Story"]
+    )
+    region = st.selectbox(
+        "Region", ["India", "USA", "UK", "Brazil", "Australia", "Other"]
+    )
+
+    views = st.number_input(
+        "Views", min_value=0, step=1000, value=views if "views" in locals() else 0
+    )
+    likes = st.number_input(
+        "Likes", min_value=0, step=100, value=likes if "likes" in locals() else 0
+    )
+    shares = st.number_input(
+        "Shares", min_value=0, step=100, value=shares if "shares" in locals() else 0
+    )
+    comments = st.number_input(
+        "Comments",
+        min_value=0,
+        step=10,
+        value=comments if "comments" in locals() else 0,
+    )
+
+    has_hashtag = st.checkbox(
+        "Has Hashtag?", value=bool(has_hashtag) if "has_hashtag" in locals() else True
+    )
+    post_date = st.date_input(
+        "Post Date",
+        value=post_date if "post_date" in locals() else pd.to_datetime("today").date(),
+    )
+
+    if st.button("Predict"):
+        platform_map = {"Instagram": 0, "Twitter": 1, "TikTok": 2, "YouTube": 3}
+        content_map = {"Post": 0, "Video": 1, "Shorts": 2, "Story": 3}
+        region_map = {
+            "India": 0,
+            "USA": 1,
+            "UK": 2,
+            "Brazil": 3,
+            "Australia": 4,
+            "Other": 5,
+        }
+
+        df_input = pd.DataFrame(
+            [
+                {
+                    "Platform": platform_map[platform],
+                    "Content_Type": content_map[content_type],
+                    "Region": region_map[region],
+                    "Views": views,
+                    "Likes": likes,
+                    "Shares": shares,
+                    "Comments": comments,
+                    "Has_Hashtag": int(has_hashtag),
+                    "Engagement_Rate": (likes + shares + comments) / (views + 1),
+                    "Post_Year": post_date.year,
+                    "Post_Month": post_date.month,
+                    "Post_DayOfWeek": post_date.weekday(),
+                    "Likes_per_View": likes / (views + 1),
+                    "Shares_per_View": shares / (views + 1),
+                    "Comments_per_View": comments / (views + 1),
+                    "Platform_Region": platform_map[platform] * 10 + region_map[region],
+                }
+            ]
+        )
+
+        prediction = model.predict(df_input)[0]
+        confidence = model.predict_proba(df_input)[0][1 if prediction == 1 else 0]
+
+        st.subheader("Prediction Result")
+        st.markdown(f"*Trending:* {'✅ Yes' if prediction else '❌ No'}")
+        st.metric("Confidence", f"{confidence * 100:.2f}%")
+
+        if prediction:
+            st.success(
+                "Your post is likely to trend due to a high engagement rate and good platform-region timing."
+            )
+        else:
+            st.warning("This post may not trend. Consider improving key areas below.")
+
+        suggestions = []
+        if likes / (views + 1) < 0.05:
+            suggestions.append(
+                "Increase likes through better content appeal or thumbnail."
+            )
+        if shares / (views + 1) < 0.01:
+            suggestions.append(
+                "Make it more shareable — add humor, curiosity, or emotion."
+            )
+        if not has_hashtag:
+            suggestions.append(
+                "You may test using a single relevant hashtag (optional)."
+            )
+        if post_date.weekday() in [5, 6]:
+            suggestions.append("Try posting on weekdays for better reach.")
+
+        if suggestions:
+            st.markdown("Suggestions to Improve")
+            for s in suggestions:
+                st.write(f"- {s}")
+
+        # --- SHAP Explainability ---
+        st.markdown("Why this prediction? (SHAP Explanation)")
+
+        explainer = shap.Explainer(model)
+        shap_values = explainer(df_input)
+
+        shap_id = uuid.uuid4().hex
+        shap_html_file = f"shap_{shap_id}.html"
+        shap.save_html(
+            shap_html_file, shap.plots.force(shap_values[0], matplotlib=False)
+        )
+
+        with open(shap_html_file, "r", encoding="utf-8") as f:
+            components.html(f.read(), height=400, scrolling=True)
+
+        os.remove(shap_html_file)
+
+        # -------- Divider --------
     st.write("")
     st.write("")
     st.write("")
@@ -567,47 +864,78 @@ def main():
     st.write("")
     st.write("")
 
-    # -------- Sentiment Analyzer Section --------
-    st.markdown('<div class="section-header">Sentiment Analyzer</div>', unsafe_allow_html=True)
-
+    # Load Data
     df = load_data("data/India_with_vader.csv")
     if df.empty:
         st.stop()
 
-    # User input topic/person name
-    topic_input = st.text_input("Enter a Topic or Name to Analyze Sentiment", placeholder="e.g., Elon Musk")
+        # st.markdown('<div class="section-header">Tweet Trend Prediction</div>', unsafe_allow_html=True)
+        # trend_tweet = st.text_area("Enter a Tweet to Predict Trend", placeholder="e.g., Huge Black Friday deals on Amazon!")
 
-    sentiment_filter = st.radio("Filter Sentiment", ['All', 'Positive', 'Neutral', 'Negative'], horizontal=True)
+        # if st.button("Predict Trend"):
+        #     if trend_tweet.strip():
+        #         will_trend, confidence, explanation, duration = get_trend_prediction(trend_tweet)
+        #         if will_trend is None:
+        #             st.error("Could not get trend prediction.")
+        #         else:
+        #             trend_str = "YES! This tweet is likely to TREND" if will_trend else "NO, this tweet is unlikely to trend."
+        #             st.success(trend_str)
+        #             st.info(f"Confidence: *{round(confidence * 100, 2)}%*")
+        #             st.markdown(f'<div class="explanation-box"><strong>Why:</strong> {explanation}</div>', unsafe_allow_html=True)
+        #             if will_trend:
+        #                 st.markdown(f"Estimated Trending Duration: *{duration} days*")
 
-    if topic_input:
-        filtered_df = df[df['tweet'].str.contains(topic_input, case=False, na=False)]
-        if sentiment_filter != 'All':
-            filtered_df = filtered_df[filtered_df['Sentiment'].str.lower() == sentiment_filter.lower()]
+        #     else:
+        #         st.warning("Please enter a tweet first.")
 
-        if filtered_df.empty:
-            st.warning("No matching tweets found.")
-            return
+        # # -------- Divider --------
+        # st.write("")
+        # st.write("")
+        # st.write("")
+        # st.write("")
+        # st.markdown("<hr>", unsafe_allow_html=True)
+        # st.write("")
+        # st.write("")
+        # st.write("")
+        # st.write("")
 
-        st.markdown(f"### Found {len(filtered_df)} tweets about *{topic_input}*")
-        plot_sentiment_distribution(filtered_df)
+        # # -------- Sentiment Analyzer Section --------
+        # st.markdown('<div class="section-header">Sentiment Analyzer</div>', unsafe_allow_html=True)
 
-        # -------- Divider --------
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
-        st.markdown("<hr>", unsafe_allow_html=True)
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
+        # df = load_data("data/India_with_vader.csv")
+        # if df.empty:
+        #     st.stop()
+
+        # # User input topic/person name
+        # topic_input = st.text_input("Enter a Topic or Name to Analyze Sentiment", placeholder="e.g., Elon Musk")
+
+        # sentiment_filter = st.radio("Filter Sentiment", ['All', 'Positive', 'Neutral', 'Negative'], horizontal=True)
+
+        # if topic_input:
+        #     filtered_df = df[df['tweet'].str.contains(topic_input, case=False, na=False)]
+        #     if sentiment_filter != 'All':
+        #         filtered_df = filtered_df[filtered_df['Sentiment'].str.lower() == sentiment_filter.lower()]
+
+        #     if filtered_df.empty:
+        #         st.warning("No matching tweets found.")
+        #         return
+
+        #     st.markdown(f"### Found {len(filtered_df)} tweets about *{topic_input}*")
+        #     plot_sentiment_distribution(filtered_df)
 
         # Select or enter tweet for sentiment
-        st.markdown('<div class="section-header">DistilBERT Sentiment Classifier</div>', unsafe_allow_html=True)
-        analyze_mode = st.radio("Choose Tweet Input", ["Select from Dataset", "Enter Your Own"], horizontal=True)
+        st.markdown(
+            '<div class="section-header">DistilBERT Sentiment Classifier</div>',
+            unsafe_allow_html=True,
+        )
+        analyze_mode = st.radio(
+            "Choose Tweet Input",
+            ["Select from Dataset", "Enter Your Own"],
+            horizontal=True,
+        )
 
         if analyze_mode == "Select from Dataset":
-            selected_tweet = st.selectbox("Tweet", filtered_df['tweet'].tolist())
+            selected_tweet = st.selectbox("Tweet", filtered_df["tweet"].tolist())
         else:
             selected_tweet = st.text_area("Enter Tweet for Sentiment")
 
@@ -617,32 +945,44 @@ def main():
             else:
                 st.warning("Please enter or select a tweet.")
 
-        st.markdown('<div class="section-header">Filtered Tweets</div>', unsafe_allow_html=True)
-        st.dataframe(filtered_df[['username', 'tweet', 'Sentiment']].reset_index(drop=True), height=300)
+        st.markdown(
+            '<div class="section-header">Filtered Tweets</div>', unsafe_allow_html=True
+        )
+        st.dataframe(
+            filtered_df[["username", "tweet", "Sentiment"]].reset_index(drop=True),
+            height=300,
+        )
 
-        plot_trend_over_time(filtered_df, topic_input)
+        plot_trend_over_time(filtered_df)
 
     else:
-        st.info("Please enter a topic or name to continue sentiment analysis.")
+        ()
 
-    # -------- Divider --------
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-
-    st.markdown('<div class="section-header">Filter Tweets</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header">Filter Tweets</div>', unsafe_allow_html=True
+    )
 
     # Sidebar for filters (or use columns)
     common_names = [
-        'Kohli', 'Virat Kohli', 'Rohit Sharma', 'Yuzvendra Chahal', 'Jasprit Bumrah', 'Babar Azam',
-        'Modi', 'Putin Sweden', 'Covid', 'Eminem', 'Alice', 'Harsh V Pant', 'Hansa Mehta', 'Ladakh',
-        'BestBid ExchangeCoindcx', 'BestBid ExchangeZebpay', 'Millie Book', 'Twitter', 'USDT'
+        "Kohli",
+        "Virat Kohli",
+        "Rohit Sharma",
+        "Yuzvendra Chahal",
+        "Jasprit Bumrah",
+        "Babar Azam",
+        "Modi",
+        "Putin Sweden",
+        "Covid",
+        "Eminem",
+        "Alice",
+        "Harsh V Pant",
+        "Hansa Mehta",
+        "Ladakh",
+        "BestBid ExchangeCoindcx",
+        "BestBid ExchangeZebpay",
+        "Millie Book",
+        "Twitter",
+        "USDT",
     ]
 
     # Use sidebar or main layout - here main for website feel
@@ -652,7 +992,11 @@ def main():
         person = st.selectbox("Select a person/topic mentioned in tweets", common_names)
 
     with col_filter2:
-        filter_option = st.radio("Filter by Sentiment", ['All', 'Positive', 'Neutral', 'Negative'], horizontal=True)
+        filter_option = st.radio(
+            "Filter by Sentiment",
+            ["All", "Positive", "Neutral", "Negative"],
+            horizontal=True,
+        )
 
     # Filter Data
     filtered_df = filter_tweets_by_person(df, person)
@@ -670,7 +1014,7 @@ def main():
     # Sentiment Distribution Plots
     plot_sentiment_distribution(filtered_df)
 
-        # -------- Divider --------
+    # -------- Divider --------
     st.write("")
     st.write("")
     st.write("")
@@ -681,71 +1025,93 @@ def main():
     st.write("")
     st.write("")
 
-    st.markdown('<div class="section-header">DistilBERT Sentiment Analysis</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header">DistilBERT Sentiment Analysis</div>',
+        unsafe_allow_html=True,
+    )
 
-    analyze_mode = st.radio("Choose Tweet Input Mode", ["Select from Dataset", "Enter Your Own Tweet"], horizontal=True)
+    analyze_mode = st.radio(
+        "Choose Tweet Input Mode",
+        ["Select from Dataset", "Enter Your Own Tweet"],
+        horizontal=True,
+    )
 
     selected_tweet = ""
     if analyze_mode == "Select from Dataset":
-        selected_tweet = st.selectbox("Select a Tweet to Analyze", filtered_df['tweet'].tolist())
+        selected_tweet = st.selectbox(
+            "Select a Tweet to Analyze", filtered_df["tweet"].tolist()
+        )
     else:
         selected_tweet = st.text_area("Enter your own tweet for sentiment analysis")
 
     if selected_tweet and st.button("Analyze with DistilBERT"):
         analyze_sentiment_with_distilbert(selected_tweet)
 
-    st.markdown('<div class="section-header">Filtered Tweets Data</div>', unsafe_allow_html=True)
-    st.dataframe(filtered_df[['username', 'tweet', 'Sentiment']].reset_index(drop=True), height=300)
+    st.markdown(
+        '<div class="section-header">Filtered Tweets Data</div>', unsafe_allow_html=True
+    )
+    st.dataframe(
+        filtered_df[["username", "tweet", "Sentiment"]].reset_index(drop=True),
+        height=300,
+    )
 
-    plot_trend_over_time(filtered_df, person)
-    trend_duration_prediction()
+    plot_trend_over_time(filtered_df)
 
-                # -------- Divider --------
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
+    #             # -------- Divider --------
+    # st.write("")
+    # st.write("")
+    # st.write("")
+    # st.write("")
+    # st.markdown("<hr>", unsafe_allow_html=True)
+    # st.write("")
+    # st.write("")
+    # st.write("")
+    # st.write("")
 
-    st.markdown('<div class="section-header">Real or Fake User</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header">Real or Fake User</div>', unsafe_allow_html=True
+    )
 
-    user_input = st.text_area("Enter Username", placeholder = "Example: narendramodi , elonmusk , FabrizioRomano")
+    user_input = st.text_area(
+        "Enter Username",
+        placeholder="Example: narendramodi , elonmusk , FabrizioRomano",
+    )
 
     if st.button("Check Bot Scores") and user_input:
         # Clean and prepare the usernames
-        usernames = [uname.strip().lstrip('@') for uname in user_input.split(',') if uname.strip()]
+        usernames = [
+            uname.strip().lstrip("@")
+            for uname in user_input.split(",")
+            if uname.strip()
+        ]
 
-        payload = json.dumps({
-            "usernames": usernames
-        })
+        payload = json.dumps({"usernames": usernames})
 
         headers = {
-            'x-rapidapi-key': "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",  
-            'x-rapidapi-host': "botometer-pro.p.rapidapi.com",
-            'Content-Type': "application/json"
+            "x-rapidapi-key": "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
+            "x-rapidapi-host": "botometer-pro.p.rapidapi.com",
+            "Content-Type": "application/json",
         }
 
         try:
             with st.spinner("Fetching bot scores..."):
                 conn = http.client.HTTPSConnection("botometer-pro.p.rapidapi.com")
-                conn.request("POST", "/botometer-x/get_botscores_in_batch", payload, headers)
+                conn.request(
+                    "POST", "/botometer-x/get_botscores_in_batch", payload, headers
+                )
 
                 res = conn.getresponse()
                 data = res.read()
                 result = json.loads(data.decode("utf-8"))
 
                 parsed = [
-                {
-                    "User ID": item.get("user_id", "N/A"),
-                    "Username": item.get("username", "N/A"),
-                    "Bot Score": round(item.get("bot_score", 0), 3)
-                }
-                for item in result
-            ]
+                    {
+                        "User ID": item.get("user_id", "N/A"),
+                        "Username": item.get("username", "N/A"),
+                        "Bot Score": round(item.get("bot_score", 0), 3),
+                    }
+                    for item in result
+                ]
 
             df = pd.DataFrame(parsed)
             st.success("Result:")
@@ -754,13 +1120,13 @@ def main():
         except Exception as e:
             st.error(f"❌ Error occurred: {e}")
 
-# | **Bot Score** | **Interpretation**     |
-# | ------------- | ---------------------- |
-# | 0.0 - 0.3     | Likely human           |
-# | 0.3 - 0.6     | Suspicious / uncertain |
-# | 0.6 - 1.0     | Likely bot             |
+    # | **Bot Score** | **Interpretation**     |
+    # | ------------- | ---------------------- |
+    # | 0.0 - 0.3     | Likely human           |
+    # | 0.3 - 0.6     | Suspicious / uncertain |
+    # | 0.6 - 1.0     | Likely bot             |
 
-            # -------- Divider --------
+    # -------- Divider --------
     st.write("")
     st.write("")
     st.write("")
@@ -771,7 +1137,10 @@ def main():
     st.write("")
     st.write("")
 
-    st.markdown('<div class="section-header">Twitter Trend By Location</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header">Twitter Trend By Location</div>',
+        unsafe_allow_html=True,
+    )
 
     locations = {
         "India": 23424848,
@@ -781,7 +1150,7 @@ def main():
         "Australia": 23424748,
         "Japan": 23424856,
         "Germany": 23424829,
-        "Brazil": 23424768
+        "Brazil": 23424768,
     }
 
     # Dropdown to select a location
@@ -793,8 +1162,8 @@ def main():
             try:
                 conn = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
                 headers = {
-                    'x-rapidapi-key': "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
-                    'x-rapidapi-host': "twitter241.p.rapidapi.com"
+                    "x-rapidapi-key": "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
+                    "x-rapidapi-host": "twitter241.p.rapidapi.com",
                 }
 
                 endpoint = f"/trends-by-location?woeid={selected_woeid}"
@@ -804,20 +1173,26 @@ def main():
                 json_data = json.loads(data.decode("utf-8"))
 
                 trends = json_data["result"][0]["trends"][:5]
-                
+
                 st.subheader(f"Top Trends in {selected_location}")
                 for trend in trends:
                     name = trend.get("name", "N/A")
                     volume = trend.get("tweet_volume", "N/A")
 
                     st.markdown(f"### 🔹 {name}")
-                    st.markdown(f"**Tweet Volume**: {volume if volume else 'Not Available'}")
+                    st.markdown(
+                        f"**Tweet Volume**: {volume if volume else 'Not Available'}"
+                    )
 
                     with st.spinner(f"Fetching tweets for '{name}'..."):
                         try:
-                            search_conn = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
+                            search_conn = http.client.HTTPSConnection(
+                                "twitter241.p.rapidapi.com"
+                            )
                             query = name.replace("#", "%23").replace(" ", "%20")
-                            search_endpoint = f"/search-v2?type=Top&count=10&query={query}"
+                            search_endpoint = (
+                                f"/search-v2?type=Top&count=10&query={query}"
+                            )
                             search_conn.request("GET", search_endpoint, headers=headers)
                             search_res = search_conn.getresponse()
                             search_data = search_res.read()
@@ -834,48 +1209,48 @@ def main():
 
                         except Exception as tweet_error:
                             st.error(f"Error fetching tweets: {tweet_error}")
-                            
+
             except Exception as e:
                 st.error(f"Error: {e}")
 
     NEWS_API_HOST = "news-api14.p.rapidapi.com"
     NEWS_API_KEY = "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462"
 
-    st.markdown('<div class="section-header">Tweet Deep Analysis: Meaning, Context & Impact</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header">Tweet Deep Analysis: Meaning, Context & Impact</div>',
+        unsafe_allow_html=True,
+    )
 
     # Tweet input area (formerly in sidebar)
     tweet_text = st.text_area("Paste tweet text below for analysis:", height=150)
 
     ANALYSIS_TEMPLATE = """
-    ###  Analysis Report
+        ###  Analysis Report
 
-    1. Meaning 
-    {meaning}
+        1. Meaning 
+        {meaning}
 
-    2. Context  
-    {context}
+        2. Context  
+        {context}
 
-    3. Why It Matters 
-    {contribution}
+        3. Why It Matters 
+        {contribution}
 
-    4. What It Leads To  
-    {impact}
-    """
+        4. What It Leads To  
+        {impact}
+        """
 
     # Get related news from API
     def get_related_news(query):
         try:
             clean_query = quote(query[:100])
             conn = http.client.HTTPSConnection(NEWS_API_HOST)
-            headers = {
-                'x-rapidapi-key': NEWS_API_KEY,
-                'x-rapidapi-host': NEWS_API_HOST
-            }
+            headers = {"x-rapidapi-key": NEWS_API_KEY, "x-rapidapi-host": NEWS_API_HOST}
             path = f"/v2/search?q={clean_query}&language=en&sortBy=relevance"
             conn.request("GET", path, headers=headers)
             res = conn.getresponse()
             data = json.loads(res.read().decode("utf-8"))
-            return data.get('articles', [])[:3]
+            return data.get("articles", [])[:3]
         except Exception as e:
             st.error(f"Error fetching news: {str(e)}")
             return []
@@ -888,22 +1263,30 @@ def main():
             max_length=200,
             num_return_sequences=1,
             no_repeat_ngram_size=2,
-            early_stopping=True
+            early_stopping=True,
         )
-        return tokenizer.decode(outputs[0], skip_special_tokens=True).replace(prompt, "")
+        return tokenizer.decode(outputs[0], skip_special_tokens=True).replace(
+            prompt, ""
+        )
 
     # Generate 4-part analysis
     def generate_comprehensive_analysis(text, news_context=""):
-        meaning_prompt = f"Explain the literal and implied meaning of this tweet: '{text}'."
+        meaning_prompt = (
+            f"Explain the literal and implied meaning of this tweet: '{text}'."
+        )
         context_prompt = f"Provide historical, cultural or social context for this tweet: '{text}'. {news_context}"
-        contribution_prompt = f"Analyze how this tweet contributes to public discourse: '{text}'."
-        impact_prompt = f"Predict the potential real-world impact of this tweet: '{text}'."
+        contribution_prompt = (
+            f"Analyze how this tweet contributes to public discourse: '{text}'."
+        )
+        impact_prompt = (
+            f"Predict the potential real-world impact of this tweet: '{text}'."
+        )
 
         return {
             "meaning": generate_analysis(meaning_prompt),
             "context": generate_analysis(context_prompt),
             "contribution": generate_analysis(contribution_prompt),
-            "impact": generate_analysis(impact_prompt)
+            "impact": generate_analysis(impact_prompt),
         }
 
     # Run full analysis
@@ -914,34 +1297,41 @@ def main():
 
         with st.spinner("Analyzing tweet..."):
             news_articles = get_related_news(tweet_text)
-            news_context = "\n".join([f"- {art['title']}" for art in news_articles]) if news_articles else "No recent news context found"
+            news_context = (
+                "\n".join([f"- {art['title']}" for art in news_articles])
+                if news_articles
+                else "No recent news context found"
+            )
             analysis = generate_comprehensive_analysis(tweet_text, news_context)
 
             st.subheader("Original Tweet")
             st.write(tweet_text)
 
             st.subheader("AI-Based Analysis")
-            st.markdown(ANALYSIS_TEMPLATE.format(
-                meaning=analysis['meaning'],
-                context=analysis['context'],
-                contribution=analysis['contribution'],
-                impact=analysis['impact']
-            ))
+            st.markdown(
+                ANALYSIS_TEMPLATE.format(
+                    meaning=analysis["meaning"],
+                    context=analysis["context"],
+                    contribution=analysis["contribution"],
+                    impact=analysis["impact"],
+                )
+            )
 
             if news_articles:
                 st.subheader("Related News")
                 for article in news_articles:
-                    with st.expander(article['title']):
-                        st.write(article.get('description', 'No description available'))
-                        if article.get('url'):
+                    with st.expander(article["title"]):
+                        st.write(article.get("description", "No description available"))
+                        if article.get("url"):
                             st.markdown(f"[Read more]({article['url']})")
 
     # Analyze button triggers analysis
     if st.button("Analyze Tweet"):
         run_analysis()
-    else: ()
+    else:
+        ()
 
-            # -------- Divider --------
+    # -------- Divider --------
     st.write("")
     st.write("")
     st.write("")
@@ -952,267 +1342,151 @@ def main():
     st.write("")
     st.write("")
 
-    st.markdown('<div class="section-header">Deepfake Trend</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-header">Deepfake Trend</div>', unsafe_allow_html=True
+    )
     simulator = get_simulator()
-    
+
     st.header("Simulation Controls")
     col1, col2 = st.columns([2, 1])
-    
+
     with col1:
         seed_text = st.text_area(
-            "Trend seed:", 
+            "Trend seed:",
             "Breaking: Study finds chocolate helps weight loss",
-            help="Base content for the fake trend"
+            help="Base content for the fake trend",
         )
         mimic_handle = st.text_input(
-            "Mimic account style (optional):", 
-            "",
-            help="e.g. @elonmusk"
+            "Mimic account style (optional):", "", help="e.g. @elonmusk"
         )
-    
+
     with col2:
-        simulation_hours = st.slider(
-            "Simulation duration (hours):",
-            6, 72, 24
-        )
+        simulation_hours = st.slider("Simulation duration (hours):", 6, 72, 24)
         run_simulation = st.button("Launch Simulation")
 
     if run_simulation:
         with st.spinner("Generating scenario..."):
             # Generate fake content
-            fake_tweet = simulator.generate_tweet(seed_text, mimic_handle if mimic_handle else None)
-            
+            fake_tweet = simulator.generate_tweet(
+                seed_text, mimic_handle if mimic_handle else None
+            )
+
             # Simulate spread
             timeline = simulator.simulate_spread(fake_tweet, simulation_hours)
             events = [e for t in timeline for e in t["events"]]
-            
+
             # Calculate metrics
             final_reach = timeline[-1]["total_reach"]
             peak_reach = max(t["total_reach"] for t in timeline)
-            debunk_time = next((e["hour"] for e in events if e["type"] == "Fact-checker"), None)
-            
+            debunk_time = next(
+                (e["hour"] for e in events if e["type"] == "Fact-checker"), None
+            )
+
             # Top amplifiers
             amplifier_impact = {}
             for e in events:
                 if e["type"] in ["Celebrity", "Journalist", "Politician"]:
-                    amplifier_impact[e["account"]] = amplifier_impact.get(e["account"], 0) + e["reach_added"]
-            top_amplifiers = sorted(amplifier_impact.items(), key=lambda x: x[1], reverse=True)[:3]
-        
+                    amplifier_impact[e["account"]] = (
+                        amplifier_impact.get(e["account"], 0) + e["reach_added"]
+                    )
+            top_amplifiers = sorted(
+                amplifier_impact.items(), key=lambda x: x[1], reverse=True
+            )[:3]
+
         # Results display
         st.subheader("Generated Content")
         with st.expander("View synthetic tweet"):
             st.code(fake_tweet, language="text")
             st.caption("This is AI-generated content - not real")
-        
+
         # Metrics
         col1, col2, col3 = st.columns(3)
         col1.metric("Peak Reach", f"{peak_reach:,}")
         col2.metric("Final Reach", f"{final_reach:,}")
-        col3.metric("Debunk Time", f"{debunk_time} hours" if debunk_time else "Not debunked")
-        
+        col3.metric(
+            "Debunk Time", f"{debunk_time} hours" if debunk_time else "Not debunked"
+        )
+
         # Visualization
         st.subheader("Spread Analysis")
         fig, ax = plt.subplots(figsize=(10, 4))
         hours = [t["hour"] for t in timeline]
         reach = [t["total_reach"] for t in timeline]
-        ax.plot(hours, reach, marker='o', color='#1DA1F2')
-        
+        ax.plot(hours, reach, marker="o", color="#1DA1F2")
+
         if debunk_time:
-            ax.axvline(x=debunk_time, color='red', linestyle='--', label='Debunked')
-            ax.text(debunk_time, max(reach)*0.8, "Fact-checked", rotation=90, color='red')
-        
+            ax.axvline(x=debunk_time, color="red", linestyle="--", label="Debunked")
+            ax.text(
+                debunk_time, max(reach) * 0.8, "Fact-checked", rotation=90, color="red"
+            )
+
         ax.set_title("Estimated Reach Over Time")
         ax.set_xlabel("Hours After Posting")
         ax.set_ylabel("Potential Reach")
         ax.grid(True, alpha=0.2)
         st.pyplot(fig)
-        
+
         # Event log
         st.subheader("Key Events Timeline")
-        event_df = pd.DataFrame([
-            {
-                "Hour": e["hour"],
-                "Account": e["account"],
-                "Type": e["type"],
-                "Action": e["action"],
-                "Reach Impact": f"{e['reach_added']:,}"
-            } for e in events
-        ])
+        event_df = pd.DataFrame(
+            [
+                {
+                    "Hour": e["hour"],
+                    "Account": e["account"],
+                    "Type": e["type"],
+                    "Action": e["action"],
+                    "Reach Impact": f"{e['reach_added']:,}",
+                }
+                for e in events
+            ]
+        )
         st.dataframe(
             event_df.style.applymap(
-                lambda x: 'color: red' if x == "Fact-checker" else (
-                    'color: green' if x == "Media" else ''
+                lambda x: (
+                    "color: red"
+                    if x == "Fact-checker"
+                    else ("color: green" if x == "Media" else "")
                 ),
-                subset=["Type"]
+                subset=["Type"],
             ),
             hide_index=True,
-            use_container_width=True
+            use_container_width=True,
         )
-        
+
         # Amplifier analysis
         st.subheader("Top Amplifiers")
         if top_amplifiers:
             for account, impact in top_amplifiers:
                 st.progress(
-                    min(impact/peak_reach, 1.0), 
-                    text=f"{account} (+{impact:,} reach)"
+                    min(impact / peak_reach, 1.0), text=f"{account} (+{impact:,} reach)"
                 )
         else:
             st.info("No significant amplifiers detected")
-        
+
         # Media coverage
         st.subheader("Media Coverage")
         if media_events := [e for e in events if e["type"] == "Media"]:
             for e in media_events:
-                st.write(f"**{e['account']}** reported at hour {e['hour']} (+{e['reach_added']:,} reach)")
+                st.write(
+                    f"**{e['account']}** reported at hour {e['hour']} (+{e['reach_added']:,} reach)"
+                )
         else:
             st.info("No media coverage generated")
 
-            # -------- Divider --------
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.markdown("<hr>", unsafe_allow_html=True)
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-
-
+    #         # -------- Divider --------
+    # st.write("")
+    # st.write("")
+    # st.write("")
+    # st.write("")
+    # st.markdown("<hr>", unsafe_allow_html=True)
+    # st.write("")
+    # st.write("")
+    # st.write("")
+    # st.write("")
     # Load best model (e.g., XGBoost for SHAP explainability)
-    model = joblib.load("xgboost_trending.pkl")
 
-    st.markdown('<div class="section-header">Trend Prediction</div>', unsafe_allow_html=True)
-    st.markdown("""
-    Enter post details below and find out if your content is likely to trend based on past patterns across platforms like X, Instagram, YouTube, TikTok, etc.
-    """)
+    # st.markdown('<div class="footer">Made with ❤️ using Streamlit | Twitter Sentiment Analyzer</div>', unsafe_allow_html=True)
 
-    st.subheader("Search real tweet by username")
-    username = st.text_input("Enter Twitter username (without @):", value="elonmusk")
-    tweet_limit = st.slider("Number of latest tweets to check:", min_value=1, max_value=10, value=1)
-
-    auto_fill = False
-
-    if st.button("Fetch Latest Tweet"):
-        conn = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
-        headers = {
-            'x-rapidapi-key': "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
-            'x-rapidapi-host': "twitter241.p.rapidapi.com"
-        }
-        try:
-            conn.request("GET", f"/user/tweets?id={username}&count={tweet_limit}", headers=headers)
-            res = conn.getresponse()
-            data = json.loads(res.read().decode("utf-8"))
-
-            if 'tweets' not in data or not data['tweets']:
-                raise ValueError("No tweets found or invalid user.")
-
-            tweet_obj = data['tweets'][0]  # First tweet
-
-            st.success("Tweet data fetched successfully!")
-            st.write(f"*Tweet Text:* {tweet_obj.get('full_text', 'N/A')}")
-            # Auto-fill data
-            likes = tweet_obj.get('favorite_count', 0)
-            shares = tweet_obj.get('retweet_count', 0)
-            comments = tweet_obj.get('reply_count', 0)
-            views = tweet_obj.get('view_count', 1000)
-            created_at = pd.to_datetime(tweet_obj['created_at'])
-            post_date = created_at.date()
-            has_hashtag = 1 if tweet_obj.get('entities', {}).get('hashtags') else 0
-
-            # Set defaults
-            platform = "Twitter"
-            content_type = "Post"
-            region = "India"
-
-            auto_fill = True
-
-        except Exception as e:
-            st.error(f"Error fetching tweet: {e}")
-
-    st.markdown("---")
-    st.subheader("Or manually enter post details")
-
-    platform = st.selectbox("Platform", ["Instagram", "Twitter", "TikTok", "YouTube"])
-    content_type = st.selectbox("Content Type", ["Post/Tweet", "Video", "Shorts", "Story"])
-    region = st.selectbox("Region", ["India", "USA", "UK", "Brazil", "Australia", "Other"])
-
-    views = st.number_input("Views", min_value=0, step=1000, value=views if 'views' in locals() else 0)
-    likes = st.number_input("Likes", min_value=0, step=100, value=likes if 'likes' in locals() else 0)
-    shares = st.number_input("Shares", min_value=0, step=100, value=shares if 'shares' in locals() else 0)
-    comments = st.number_input("Comments", min_value=0, step=10, value=comments if 'comments' in locals() else 0)
-
-    has_hashtag = st.checkbox("Has Hashtag?", value=bool(has_hashtag) if 'has_hashtag' in locals() else True)
-    post_date = st.date_input("Post Date", value=post_date if 'post_date' in locals() else pd.to_datetime("today").date())
-
-    if st.button("Predict"):
-        platform_map = {"Instagram": 0, "Twitter": 1, "TikTok": 2, "YouTube": 3}
-        content_map = {"Post": 0, "Video": 1, "Shorts": 2, "Story": 3}
-        region_map = {"India": 0, "USA": 1, "UK": 2, "Brazil": 3, "Australia": 4, "Other": 5}
-
-        df_input = pd.DataFrame([{
-            "Platform": platform_map[platform],
-            "Content_Type": content_map[content_type],
-            "Region": region_map[region],
-            "Views": views,
-            "Likes": likes,
-            "Shares": shares,
-            "Comments": comments,
-            "Has_Hashtag": int(has_hashtag),
-            "Engagement_Rate": (likes + shares + comments) / (views + 1),
-            "Post_Year": post_date.year,
-            "Post_Month": post_date.month,
-            "Post_DayOfWeek": post_date.weekday(),
-            "Likes_per_View": likes / (views + 1),
-            "Shares_per_View": shares / (views + 1),
-            "Comments_per_View": comments / (views + 1),
-            "Platform_Region": platform_map[platform] * 10 + region_map[region]
-        }])
-
-        prediction = model.predict(df_input)[0]
-        confidence = model.predict_proba(df_input)[0][1 if prediction == 1 else 0]
-
-        st.subheader("Prediction Result")
-        st.markdown(f"*Trending:* {'✅ Yes' if prediction else '❌ No'}")
-        st.metric("Confidence", f"{confidence * 100:.2f}%")
-
-        if prediction:
-            st.success("Your post is likely to trend due to a high engagement rate and good platform-region timing.")
-        else:
-            st.warning("This post may not trend. Consider improving key areas below.")
-
-        suggestions = []
-        if likes / (views + 1) < 0.05:
-            suggestions.append("Increase likes through better content appeal or thumbnail.")
-        if shares / (views + 1) < 0.01:
-            suggestions.append("Make it more shareable — add humor, curiosity, or emotion.")
-        if not has_hashtag:
-            suggestions.append("You may test using a single relevant hashtag (optional).")
-        if post_date.weekday() in [5, 6]:
-            suggestions.append("Try posting on weekdays for better reach.")
-
-        if suggestions:
-            st.markdown("Suggestions to Improve")
-            for s in suggestions:
-                st.write(f"- {s}")
-
-        # --- SHAP Explainability ---
-        st.markdown("Why this prediction? (SHAP Explanation)")
-
-        explainer = shap.Explainer(model)
-        shap_values = explainer(df_input)
-
-        shap_id = uuid.uuid4().hex
-        shap_html_file = f"shap_{shap_id}.html"
-        shap.save_html(shap_html_file, shap.plots.force(shap_values[0], matplotlib=False))
-
-        with open(shap_html_file, "r", encoding="utf-8") as f:
-            components.html(f.read(), height=400, scrolling=True)
-
-        os.remove(shap_html_file)
-
-    #st.markdown('<div class="footer">Made with ❤️ using Streamlit | Twitter Sentiment Analyzer</div>', unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
