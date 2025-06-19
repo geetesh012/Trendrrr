@@ -663,112 +663,171 @@ def extract_tweets_from_response(data):
 
 def main():
     # -------- Divider --------
+    # --- Load Model ---
     model = joblib.load("xgboost_trending.pkl")
 
+    # --- Fetch Tweet Block ---
     st.markdown(
-        '<div class="section-header">Trend Prediction</div>', unsafe_allow_html=True
+        '<div class="section-header">Trend Prediction</div>',
+        unsafe_allow_html=True,
     )
-    st.markdown(
-        """
-    Enter post details below and find out if your content is likely to trend based on past patterns across platforms like X, Instagram, YouTube, TikTok, etc.
-    """
-    )
-
-    # Twitter input
-    st.subheader("Search real tweet by username")
     username = st.text_input("Enter Twitter username (without @):", value="elonmusk")
     tweet_limit = st.slider(
-        "Number of latest tweets to check:", min_value=1, max_value=10, value=1
+        "Number of latest tweets to check:", min_value=1, max_value=5, value=1
     )
 
-    auto_fill = False
+    # Defaults
+    auto_filled = {}
 
-    if st.button("Fetch Latest Tweet"):
+    if st.button("Fetch Latest Tweet") and username:
         try:
-            # Connect to Twitter API
-            conn = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
-            headers = {
+            # Get User ID
+            conn_user = http.client.HTTPSConnection("twitterr.p.rapidapi.com")
+            headers_user = {
+                "x-rapidapi-key": "55f56f17bemsh27eb6cc653eab4dp1395fdjsn2540786151af",
+                "x-rapidapi-host": "twitterr.p.rapidapi.com",
+            }
+            conn_user.request(
+                "GET", f"/twitter/user/info?userName={username}", headers=headers_user
+            )
+            user_data = json.loads(conn_user.getresponse().read().decode("utf-8"))
+            user_id = user_data["data"]["id"]
+
+            # Get Tweets
+            conn_tweet = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
+            headers_tweet = {
                 "x-rapidapi-key": "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
                 "x-rapidapi-host": "twitter241.p.rapidapi.com",
             }
-
-            conn.request(
+            conn_tweet.request(
                 "GET",
-                f"/user-tweets?user={username}&count={tweet_limit}",
-                headers=headers,
+                f"/user-tweets?user={user_id}&count={tweet_limit}",
+                headers=headers_tweet,
             )
-            res = conn.getresponse()
-            data = json.loads(res.read().decode("utf-8"))
+            tweet_data = json.loads(conn_tweet.getresponse().read().decode("utf-8"))
 
-            # Validate response
-            if "tweets" not in data or not data["tweets"]:
-                st.error("No tweets found or the user might be invalid.")
-            else:
-                tweet_obj = data["tweets"][0]  # First tweet
+            tweets = []
+            instructions = (
+                tweet_data.get("result", {}).get("timeline", {}).get("instructions", [])
+            )
 
-                # Show tweet
-                st.success("Tweet data fetched successfully!")
-                st.markdown(f"**Tweet Text:** {tweet_obj.get('full_text', 'N/A')}")
+            for instruction in instructions:
+                if instruction.get("type") in [
+                    "TimelineAddEntries",
+                    "TimelinePinEntry",
+                ]:
+                    entries = (
+                        instruction.get("entries", [])
+                        if instruction.get("type") == "TimelineAddEntries"
+                        else [instruction.get("entry", {})]
+                    )
+                    for entry in entries:
+                        content = entry.get("content", {})
+                        item_content = content.get("itemContent", {})
+                        tweet_results = item_content.get("tweet_results", {}).get(
+                            "result", {}
+                        )
+                        legacy = tweet_results.get("legacy", {})
+                        views = tweet_results.get("views", {}).get("count", 1000)
 
-                # Extract key features
-                likes = tweet_obj.get("favorite_count", 0)
-                shares = tweet_obj.get("retweet_count", 0)
-                comments = tweet_obj.get("reply_count", 0)
-                views = tweet_obj.get("view_count", 1000)
-                created_at = pd.to_datetime(tweet_obj["created_at"])
-                post_date = created_at.date()
-                has_hashtag = 1 if tweet_obj.get("entities", {}).get("hashtags") else 0
+                        if legacy.get("full_text"):
+                            tweets.append(
+                                {
+                                    "text": legacy["full_text"],
+                                    "likes": legacy.get("favorite_count", 0),
+                                    "retweets": legacy.get("retweet_count", 0),
+                                    "replies": legacy.get("reply_count", 0),
+                                    "views": views,
+                                    "created_at": legacy.get("created_at"),
+                                }
+                            )
 
-                # Fixed fields for simplicity
-                platform = "Twitter"
-                content_type = "Post"
-                region = "India"
+            if tweets:
+                tweet = tweets[0]
+                st.success("Tweet fetched successfully!")
+                st.markdown(f"**Tweet Text:** {tweet['text']}")
 
-                auto_fill = True
+                created_at = pd.to_datetime(tweet["created_at"])
+                has_hashtag = 1 if "#" in tweet["text"] else 0
 
-                # You can use the extracted variables to populate a prediction form next
+                # Auto-fill values
+                # Ensure all values are safely converted to int
+                auto_filled = {
+                    "platform": "Twitter",
+                    "content_type": "Post/Tweet",
+                    "region": "India",
+                    "views": (
+                        int(tweet["views"]) if str(tweet["views"]).isdigit() else 0
+                    ),
+                    "likes": (
+                        int(tweet["likes"]) if str(tweet["likes"]).isdigit() else 0
+                    ),
+                    "shares": (
+                        int(tweet["retweets"])
+                        if str(tweet["retweets"]).isdigit()
+                        else 0
+                    ),
+                    "comments": (
+                        int(tweet["replies"]) if str(tweet["replies"]).isdigit() else 0
+                    ),
+                    "has_hashtag": bool(has_hashtag),
+                    "post_date": created_at.date(),
+                }
 
         except Exception as e:
             st.error(f"Error fetching tweet: {e}")
 
+    # --- Manual Entry ---
     st.markdown("---")
     st.subheader("Or manually enter post details")
 
-    platform = st.selectbox("Platform", ["Instagram", "Twitter", "TikTok", "YouTube"])
-    content_type = st.selectbox(
-        "Content Type", ["Post/Tweet", "Video", "Shorts", "Story"]
+    platform = st.selectbox(
+        "Platform",
+        ["Instagram", "Twitter", "TikTok", "YouTube"],
+        index=["Instagram", "Twitter", "TikTok", "YouTube"].index(
+            auto_filled.get("platform", "Twitter")
+        ),
     )
+
+    content_type = st.selectbox(
+        "Content Type",
+        ["Post/Tweet", "Video", "Shorts", "Story"],
+        index=["Post/Tweet", "Video", "Shorts", "Story"].index(
+            auto_filled.get("content_type", "Post/Tweet")
+        ),
+    )
+
     region = st.selectbox(
-        "Region", ["India", "USA", "UK", "Brazil", "Australia", "Other"]
+        "Region",
+        ["India", "USA", "UK", "Brazil", "Australia", "Other"],
+        index=["India", "USA", "UK", "Brazil", "Australia", "Other"].index(
+            auto_filled.get("region", "India")
+        ),
     )
 
     views = st.number_input(
-        "Views", min_value=0, step=1000, value=views if "views" in locals() else 0
+        "Views", min_value=0, step=1000, value=auto_filled.get("views", 0)
     )
     likes = st.number_input(
-        "Likes", min_value=0, step=100, value=likes if "likes" in locals() else 0
+        "Likes", min_value=0, step=100, value=auto_filled.get("likes", 0)
     )
     shares = st.number_input(
-        "Shares", min_value=0, step=100, value=shares if "shares" in locals() else 0
+        "Shares", min_value=0, step=100, value=auto_filled.get("shares", 0)
     )
     comments = st.number_input(
-        "Comments",
-        min_value=0,
-        step=10,
-        value=comments if "comments" in locals() else 0,
+        "Comments", min_value=0, step=10, value=auto_filled.get("comments", 0)
     )
-
     has_hashtag = st.checkbox(
-        "Has Hashtag?", value=bool(has_hashtag) if "has_hashtag" in locals() else True
+        "Has Hashtag?", value=auto_filled.get("has_hashtag", True)
     )
     post_date = st.date_input(
-        "Post Date",
-        value=post_date if "post_date" in locals() else pd.to_datetime("today").date(),
+        "Post Date", value=auto_filled.get("post_date", pd.to_datetime("today").date())
     )
 
+    # --- Predict Button ---
     if st.button("Predict"):
         platform_map = {"Instagram": 0, "Twitter": 1, "TikTok": 2, "YouTube": 3}
-        content_map = {"Post": 0, "Video": 1, "Shorts": 2, "Story": 3}
+        content_map = {"Post/Tweet": 0, "Video": 1, "Shorts": 2, "Story": 3}
         region_map = {
             "India": 0,
             "USA": 1,
@@ -802,7 +861,7 @@ def main():
         )
 
         prediction = model.predict(df_input)[0]
-        confidence = model.predict_proba(df_input)[0][1 if prediction == 1 else 0]
+        confidence = model.predict_proba(df_input)[0][prediction]
 
         st.subheader("Prediction Result")
         st.markdown(f"*Trending:* {'✅ Yes' if prediction else '❌ No'}")
@@ -810,11 +869,12 @@ def main():
 
         if prediction:
             st.success(
-                "Your post is likely to trend due to a high engagement rate and good platform-region timing."
+                "Your post is likely to trend due to high engagement and good platform-region match."
             )
         else:
-            st.warning("This post may not trend. Consider improving key areas below.")
+            st.warning("This post may not trend. Consider improving these areas:")
 
+        # --- Suggestions ---
         suggestions = []
         if likes / (views + 1) < 0.05:
             suggestions.append(
@@ -825,23 +885,19 @@ def main():
                 "Make it more shareable — add humor, curiosity, or emotion."
             )
         if not has_hashtag:
-            suggestions.append(
-                "You may test using a single relevant hashtag (optional)."
-            )
+            suggestions.append("Test using a single relevant hashtag.")
         if post_date.weekday() in [5, 6]:
             suggestions.append("Try posting on weekdays for better reach.")
 
         if suggestions:
-            st.markdown("Suggestions to Improve")
+            st.markdown("**Suggestions to Improve**")
             for s in suggestions:
                 st.write(f"- {s}")
 
         # --- SHAP Explainability ---
-        st.markdown("Why this prediction? (SHAP Explanation)")
-
+        st.markdown("**Why this prediction? (SHAP Explanation)**")
         explainer = shap.Explainer(model)
         shap_values = explainer(df_input)
-
         shap_id = uuid.uuid4().hex
         shap_html_file = f"shap_{shap_id}.html"
         shap.save_html(
@@ -850,7 +906,6 @@ def main():
 
         with open(shap_html_file, "r", encoding="utf-8") as f:
             components.html(f.read(), height=400, scrolling=True)
-
         os.remove(shap_html_file)
 
         # -------- Divider --------
