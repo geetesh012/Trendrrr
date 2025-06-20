@@ -779,7 +779,7 @@ def main():
 
     # --- Manual Entry ---
     st.markdown("---")
-    st.subheader("Or manually enter post details")
+    st.subheader("Manually enter post details")
 
     platform = st.selectbox(
         "Platform",
