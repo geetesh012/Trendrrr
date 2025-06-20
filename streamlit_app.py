@@ -662,120 +662,105 @@ def extract_tweets_from_response(data):
 
 
 def main():
-    # -------- Divider --------
-    # --- Load Model ---
+
     model = joblib.load("xgboost_trending.pkl")
 
-    # --- Fetch Tweet Block ---
-    st.markdown(
-        '<div class="section-header">Trend Prediction</div>',
-        unsafe_allow_html=True,
-    )
+# --- UI Header ---
+    st.markdown('<div class="section-header">Trend Prediction</div>', unsafe_allow_html=True)
+
+    # --- User Input ---
     username = st.text_input("Enter Twitter username (without @):", value="elonmusk")
-    tweet_limit = st.slider(
-        "Number of latest tweets to check:", min_value=1, max_value=5, value=1
-    )
+    tweet_limit = 5
+    
+    # --- Clear Tweets Button ---
+    col1, col2 = st.columns([3, 1])
 
-    # Defaults
-    auto_filled = {}
+    with col1:
+        fetch_clicked = st.button("Fetch Latest Tweets")
 
-    if st.button("Fetch Latest Tweet") and username:
+    with col2:
+        clear_clicked = st.button("Clear Tweets")
+
+    if clear_clicked:
+        st.session_state.pop("fetched_tweets", None)
         try:
-            # Get User ID
+            # Get user ID
             conn_user = http.client.HTTPSConnection("twitterr.p.rapidapi.com")
             headers_user = {
                 "x-rapidapi-key": "55f56f17bemsh27eb6cc653eab4dp1395fdjsn2540786151af",
                 "x-rapidapi-host": "twitterr.p.rapidapi.com",
             }
-            conn_user.request(
-                "GET", f"/twitter/user/info?userName={username}", headers=headers_user
-            )
+            conn_user.request("GET", f"/twitter/user/info?userName={username}", headers=headers_user)
             user_data = json.loads(conn_user.getresponse().read().decode("utf-8"))
             user_id = user_data["data"]["id"]
 
-            # Get Tweets
+            # Get tweets
             conn_tweet = http.client.HTTPSConnection("twitter241.p.rapidapi.com")
             headers_tweet = {
                 "x-rapidapi-key": "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
                 "x-rapidapi-host": "twitter241.p.rapidapi.com",
             }
-            conn_tweet.request(
-                "GET",
-                f"/user-tweets?user={user_id}&count={tweet_limit}",
-                headers=headers_tweet,
-            )
+            conn_tweet.request("GET", f"/user-tweets?user={user_id}&count={tweet_limit}", headers=headers_tweet)
             tweet_data = json.loads(conn_tweet.getresponse().read().decode("utf-8"))
 
-            tweets = []
-            instructions = (
-                tweet_data.get("result", {}).get("timeline", {}).get("instructions", [])
-            )
+            instructions = tweet_data.get("result", {}).get("timeline", {}).get("instructions", [])
 
+            tweets = []
             for instruction in instructions:
-                if instruction.get("type") in [
-                    "TimelineAddEntries",
-                    "TimelinePinEntry",
-                ]:
-                    entries = (
-                        instruction.get("entries", [])
-                        if instruction.get("type") == "TimelineAddEntries"
-                        else [instruction.get("entry", {})]
-                    )
+                if instruction.get("type") in ["TimelineAddEntries", "TimelinePinEntry"]:
+                    entries = instruction.get("entries", []) if instruction.get("type") == "TimelineAddEntries" else [instruction.get("entry", {})]
                     for entry in entries:
                         content = entry.get("content", {})
                         item_content = content.get("itemContent", {})
-                        tweet_results = item_content.get("tweet_results", {}).get(
-                            "result", {}
-                        )
+                        tweet_results = item_content.get("tweet_results", {}).get("result", {})
                         legacy = tweet_results.get("legacy", {})
                         views = tweet_results.get("views", {}).get("count", 1000)
 
                         if legacy.get("full_text"):
-                            tweets.append(
-                                {
-                                    "text": legacy["full_text"],
-                                    "likes": legacy.get("favorite_count", 0),
-                                    "retweets": legacy.get("retweet_count", 0),
-                                    "replies": legacy.get("reply_count", 0),
-                                    "views": views,
-                                    "created_at": legacy.get("created_at"),
-                                }
-                            )
+                            tweets.append({
+                                "text": legacy["full_text"],
+                                "likes": legacy.get("favorite_count", 0),
+                                "retweets": legacy.get("retweet_count", 0),
+                                "replies": legacy.get("reply_count", 0),
+                                "views": views,
+                                "created_at": legacy.get("created_at"),
+                            })
 
             if tweets:
-                tweet = tweets[0]
-                st.success("Tweet fetched successfully!")
-                st.markdown(f"**Tweet Text:** {tweet['text']}")
-
-                created_at = pd.to_datetime(tweet["created_at"])
-                has_hashtag = 1 if "#" in tweet["text"] else 0
-
-                # Auto-fill values
-                # Ensure all values are safely converted to int
-                auto_filled = {
-                    "platform": "Twitter",
-                    "content_type": "Post/Tweet",
-                    "region": "India",
-                    "views": (
-                        int(tweet["views"]) if str(tweet["views"]).isdigit() else 0
-                    ),
-                    "likes": (
-                        int(tweet["likes"]) if str(tweet["likes"]).isdigit() else 0
-                    ),
-                    "shares": (
-                        int(tweet["retweets"])
-                        if str(tweet["retweets"]).isdigit()
-                        else 0
-                    ),
-                    "comments": (
-                        int(tweet["replies"]) if str(tweet["replies"]).isdigit() else 0
-                    ),
-                    "has_hashtag": bool(has_hashtag),
-                    "post_date": created_at.date(),
-                }
+                st.session_state["fetched_tweets"] = tweets
+                st.success(f"{len(tweets)} Tweets fetched successfully!")
 
         except Exception as e:
             st.error(f"Error fetching tweet: {e}")
+
+    # --- Dropdown + Auto-fill ---
+    auto_filled = {}
+
+    if "fetched_tweets" in st.session_state:
+        tweets = st.session_state["fetched_tweets"]
+
+        tweet_options = {
+            f"{i+1}: {t['text'][:50]}...": t for i, t in enumerate(tweets)
+        }
+        selected_option = st.selectbox("Select a tweet to analyze", list(tweet_options.keys()))
+        selected_tweet = tweet_options[selected_option]
+
+        st.markdown(f"**Selected Tweet:** {selected_tweet['text']}")
+
+        created_at = pd.to_datetime(selected_tweet["created_at"])
+        has_hashtag = 1 if "#" in selected_tweet["text"] else 0
+
+        auto_filled = {
+            "platform": "Twitter",
+            "content_type": "Post/Tweet",
+            "region": "India",
+            "views": int(selected_tweet["views"]) if str(selected_tweet["views"]).isdigit() else 0,
+            "likes": int(selected_tweet["likes"]) if str(selected_tweet["likes"]).isdigit() else 0,
+            "shares": int(selected_tweet["retweets"]) if str(selected_tweet["retweets"]).isdigit() else 0,
+            "comments": int(selected_tweet["replies"]) if str(selected_tweet["replies"]).isdigit() else 0,
+            "has_hashtag": bool(has_hashtag),
+            "post_date": created_at.date(),
+        }
 
     # --- Manual Entry ---
     st.markdown("---")
