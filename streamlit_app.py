@@ -665,13 +665,15 @@ def main():
 
     model = joblib.load("xgboost_trending.pkl")
 
-# --- UI Header ---
-    st.markdown('<div class="section-header">Trend Prediction</div>', unsafe_allow_html=True)
+    # --- UI Header ---
+    st.markdown(
+        '<div class="section-header">Trend Prediction</div>', unsafe_allow_html=True
+    )
 
     # --- User Input ---
     username = st.text_input("Enter Twitter username (without @):", value="elonmusk")
     tweet_limit = 5
-    
+
     # --- Clear Tweets Button ---
     col1, col2 = st.columns([3, 1])
 
@@ -690,7 +692,9 @@ def main():
                 "x-rapidapi-key": "55f56f17bemsh27eb6cc653eab4dp1395fdjsn2540786151af",
                 "x-rapidapi-host": "twitterr.p.rapidapi.com",
             }
-            conn_user.request("GET", f"/twitter/user/info?userName={username}", headers=headers_user)
+            conn_user.request(
+                "GET", f"/twitter/user/info?userName={username}", headers=headers_user
+            )
             user_data = json.loads(conn_user.getresponse().read().decode("utf-8"))
             user_id = user_data["data"]["id"]
 
@@ -700,31 +704,48 @@ def main():
                 "x-rapidapi-key": "9a94713416mshe8ac12056097737p1c5799jsn17513c35a462",
                 "x-rapidapi-host": "twitter241.p.rapidapi.com",
             }
-            conn_tweet.request("GET", f"/user-tweets?user={user_id}&count={tweet_limit}", headers=headers_tweet)
+            conn_tweet.request(
+                "GET",
+                f"/user-tweets?user={user_id}&count={tweet_limit}",
+                headers=headers_tweet,
+            )
             tweet_data = json.loads(conn_tweet.getresponse().read().decode("utf-8"))
 
-            instructions = tweet_data.get("result", {}).get("timeline", {}).get("instructions", [])
+            instructions = (
+                tweet_data.get("result", {}).get("timeline", {}).get("instructions", [])
+            )
 
             tweets = []
             for instruction in instructions:
-                if instruction.get("type") in ["TimelineAddEntries", "TimelinePinEntry"]:
-                    entries = instruction.get("entries", []) if instruction.get("type") == "TimelineAddEntries" else [instruction.get("entry", {})]
+                if instruction.get("type") in [
+                    "TimelineAddEntries",
+                    "TimelinePinEntry",
+                ]:
+                    entries = (
+                        instruction.get("entries", [])
+                        if instruction.get("type") == "TimelineAddEntries"
+                        else [instruction.get("entry", {})]
+                    )
                     for entry in entries:
                         content = entry.get("content", {})
                         item_content = content.get("itemContent", {})
-                        tweet_results = item_content.get("tweet_results", {}).get("result", {})
+                        tweet_results = item_content.get("tweet_results", {}).get(
+                            "result", {}
+                        )
                         legacy = tweet_results.get("legacy", {})
                         views = tweet_results.get("views", {}).get("count", 1000)
 
                         if legacy.get("full_text"):
-                            tweets.append({
-                                "text": legacy["full_text"],
-                                "likes": legacy.get("favorite_count", 0),
-                                "retweets": legacy.get("retweet_count", 0),
-                                "replies": legacy.get("reply_count", 0),
-                                "views": views,
-                                "created_at": legacy.get("created_at"),
-                            })
+                            tweets.append(
+                                {
+                                    "text": legacy["full_text"],
+                                    "likes": legacy.get("favorite_count", 0),
+                                    "retweets": legacy.get("retweet_count", 0),
+                                    "replies": legacy.get("reply_count", 0),
+                                    "views": views,
+                                    "created_at": legacy.get("created_at"),
+                                }
+                            )
 
             if tweets:
                 st.session_state["fetched_tweets"] = tweets
@@ -739,10 +760,10 @@ def main():
     if "fetched_tweets" in st.session_state:
         tweets = st.session_state["fetched_tweets"]
 
-        tweet_options = {
-            f"{i+1}: {t['text'][:50]}...": t for i, t in enumerate(tweets)
-        }
-        selected_option = st.selectbox("Select a tweet to analyze", list(tweet_options.keys()))
+        tweet_options = {f"{i+1}: {t['text'][:50]}...": t for i, t in enumerate(tweets)}
+        selected_option = st.selectbox(
+            "Select a tweet to analyze", list(tweet_options.keys())
+        )
         selected_tweet = tweet_options[selected_option]
 
         st.markdown(f"**Selected Tweet:** {selected_tweet['text']}")
@@ -754,10 +775,26 @@ def main():
             "platform": "Twitter",
             "content_type": "Post/Tweet",
             "region": "India",
-            "views": int(selected_tweet["views"]) if str(selected_tweet["views"]).isdigit() else 0,
-            "likes": int(selected_tweet["likes"]) if str(selected_tweet["likes"]).isdigit() else 0,
-            "shares": int(selected_tweet["retweets"]) if str(selected_tweet["retweets"]).isdigit() else 0,
-            "comments": int(selected_tweet["replies"]) if str(selected_tweet["replies"]).isdigit() else 0,
+            "views": (
+                int(selected_tweet["views"])
+                if str(selected_tweet["views"]).isdigit()
+                else 0
+            ),
+            "likes": (
+                int(selected_tweet["likes"])
+                if str(selected_tweet["likes"]).isdigit()
+                else 0
+            ),
+            "shares": (
+                int(selected_tweet["retweets"])
+                if str(selected_tweet["retweets"]).isdigit()
+                else 0
+            ),
+            "comments": (
+                int(selected_tweet["replies"])
+                if str(selected_tweet["replies"]).isdigit()
+                else 0
+            ),
             "has_hashtag": bool(has_hashtag),
             "post_date": created_at.date(),
         }
@@ -863,16 +900,17 @@ def main():
         suggestions = []
         if likes / (views + 1) < 0.05:
             suggestions.append(
-                "Increase likes through better content appeal or thumbnail."
+                "Increase likes through better content appeal or visual design."
             )
         if shares / (views + 1) < 0.01:
             suggestions.append(
-                "Make it more shareable — add humor, curiosity, or emotion."
+                "Boost shareability with emotional hooks or surprising facts."
             )
-        if not has_hashtag:
-            suggestions.append("Test using a single relevant hashtag.")
-        if post_date.weekday() in [5, 6]:
-            suggestions.append("Try posting on weekdays for better reach.")
+        if has_hashtag:
+            suggestions.append("Limit or avoid hashtags — they may reduce visibility.")
+
+        if post_date.weekday() in [5, 6]:  # Saturday=5, Sunday=6
+            suggestions.append("Try posting on weekdays for better algorithmic reach.")
 
         if suggestions:
             st.markdown("**Suggestions to Improve**")
