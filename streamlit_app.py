@@ -11,7 +11,7 @@ import plotly.express as px
 import http.client
 import json
 import random
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import numpy as np
 from datetime import datetime
@@ -22,8 +22,6 @@ from urllib.parse import quote
 
 fake = Faker()
 nltk.download("vader_lexicon")
-tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-model = GPT2LMHeadModel.from_pretrained("gpt2")
 
 st.set_page_config(layout="wide", page_title="Trendrrr")
 
@@ -480,15 +478,12 @@ def trend_duration_prediction():
                     st.error("Please describe the trend to get a prediction")
 
 
-def load_gpt2():
-    tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
-    model = GPT2LMHeadModel.from_pretrained("gpt2")
-    model.eval()
-    return tokenizer, model
+def load_text_generator():
+    tokenizer = AutoTokenizer.from_pretrained("gpt2")
+    gpt2_model = AutoModelForCausalLM.from_pretrained("gpt2")
+    return tokenizer, gpt2_model
 
-
-tokenizer, model = load_gpt2()
-
+tokenizer, gpt2_model = load_text_generator()
 
 def generate_overview(trend_name, max_length=100):
     prompt = f"Provide a detailed explanation about the trending topic '{trend_name}'.\nExplanation:"
@@ -663,7 +658,7 @@ def extract_tweets_from_response(data):
 
 def main():
 
-    model = joblib.load("xgboost_trending.pkl")
+    model_xgboost = joblib.load("xgboost_trending.pkl")
 
     # --- UI Header ---
     st.markdown(
@@ -882,8 +877,8 @@ def main():
             ]
         )
 
-        prediction = model.predict(df_input)[0]
-        confidence = model.predict_proba(df_input)[0][prediction]
+        prediction = model_xgboost.predict(df_input)[0]
+        confidence = model_xgboost.predict_proba(df_input)[0][prediction]
 
         st.subheader("Prediction Result")
         st.markdown(f"*Trending:* {'✅ Yes' if prediction else '❌ No'}")
@@ -919,7 +914,7 @@ def main():
 
         # --- SHAP Explainability ---
         st.markdown("**Why this prediction? (SHAP Explanation)**")
-        explainer = shap.Explainer(model)
+        explainer = shap.Explainer(model_xgboost)
         shap_values = explainer(df_input)
         shap_id = uuid.uuid4().hex
         shap_html_file = f"shap_{shap_id}.html"
@@ -1336,7 +1331,7 @@ def main():
     # Use GPT-2 to generate analysis
     def generate_analysis(prompt):
         inputs = tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True)
-        outputs = model.generate(
+        outputs = gpt2_model.generate(
             inputs.input_ids,
             max_length=200,
             num_return_sequences=1,
