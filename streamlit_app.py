@@ -489,7 +489,7 @@ def generate_overview(trend_name, max_length=100):
     prompt = f"Provide a detailed explanation about the trending topic '{trend_name}'.\nExplanation:"
     inputs = tokenizer.encode(prompt, return_tensors="pt")
     with torch.no_grad():
-        outputs = model.generate(
+        outputs = gpt2_model.generate(
             inputs,
             max_length=max_length,
             num_return_sequences=1,
