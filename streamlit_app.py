@@ -25,7 +25,7 @@ nltk.download("vader_lexicon")
 
 st.set_page_config(layout="wide", page_title="Trendrrr")
 
-st.title("Twitter Trend Analyzer")
+st.title("X (Twitter) Trend Analyzer")
 col1, col2 = st.columns([1, 1])
 
 with col1:
@@ -98,6 +98,10 @@ st.markdown(
     .stRadio > div {
         color: #ffffff !important;
         background-color: #0B0F1A !important;
+    }
+    label, .stSelectbox label, .stTextInput label, .stTextArea label {
+        color: #cccccc !important;
+        font-weight: 500;
     }
     /* Buttons */
     .stButton>button {
