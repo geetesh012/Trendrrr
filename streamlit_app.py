@@ -1155,7 +1155,16 @@ def main():
     st.markdown(
         '<div class="section-header">Real or Fake User</div>', unsafe_allow_html=True
     )
+    st.markdown("""
+    ### About this Feature
+    This tool analyzes Twitter usernames to estimate the likelihood of being a **bot** using Botometer API. Each user is scored between `0.0` and `1.0`, where:
 
+    | **Bot Score** | **Interpretation**         |
+    |---------------|----------------------------|
+    | 0.0 - 0.3     | 🟢 Likely Human            |
+    | 0.3 - 0.6     | 🟡 Suspicious / Uncertain  |
+    | 0.6 - 1.0     | 🔴 Likely Bot              |
+        """)
     user_input = st.text_area(
         "Enter Username",
         placeholder="Example: narendramodi , elonmusk , FabrizioRomano",
