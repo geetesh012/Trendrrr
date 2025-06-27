@@ -24,7 +24,7 @@ fake = Faker()
 nltk.download("vader_lexicon")
 
 st.set_page_config(layout="wide", page_title="Trendrrr")
-
+# st.markdown('<a name="top"></a>', unsafe_allow_html=True)
 st.title("X (Twitter) Trend Analyzer")
 col1, col2 = st.columns([1, 1])
 
@@ -119,7 +119,14 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
-
+# st.markdown("<br><hr>", unsafe_allow_html=True)
+# footer = """
+# <div style="text-align: center; padding: 10px;">
+#     <a href="#top" style="margin: 0 15px; text-decoration: none; color: #4F8BF9;">Home</a> |
+#     <a href="https://yourwebsite.com/about" target="_blank" style="margin: 0 15px; text-decoration: none; color: #4F8BF9;">About</a> |
+#     <a href="mailto:contact@yourwebsite.com" style="margin: 0 15px; text-decoration: none; color: #4F8BF9;">Contact</a>
+# </div>
+# """
 
 @st.cache_data
 def load_data(filepath):
@@ -1551,19 +1558,15 @@ def main():
             st.info("No media coverage generated")
 
     #         # -------- Divider --------
+    st.write("")
     # st.write("")
+    st.markdown("<hr>", unsafe_allow_html=True)
     # st.write("")
-    # st.write("")
-    # st.write("")
-    # st.markdown("<hr>", unsafe_allow_html=True)
-    # st.write("")
-    # st.write("")
-    # st.write("")
-    # st.write("")
+    st.write("")
     # Load best model (e.g., XGBoost for SHAP explainability)
 
-    # st.markdown('<div class="footer">Made with ❤️ using Streamlit | Twitter Sentiment Analyzer</div>', unsafe_allow_html=True)
-
-
+    st.markdown('<div class="footer">Geetesh Kankonkar | Rishikesh Naik | Shubham Kapolkar</div>', unsafe_allow_html=True)    
+    # st.markdown(footer, unsafe_allow_html=True)
+    
 if __name__ == "__main__":
     main()

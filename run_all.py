@@ -20,7 +20,7 @@ def run_streamlit():
     except Exception as e:
         print(f"Error running Streamlit: {e}")
 
-if __name__ == "_main_":
+if __name__ == "__main__":
     flask_thread = threading.Thread(target=run_flask)
     streamlit_thread = threading.Thread(target=run_streamlit)
 
