@@ -689,7 +689,7 @@ def main():
     with col2:
         clear_clicked = st.button("Clear Tweets")
 
-    if clear_clicked:
+    if fetch_clicked:
         st.session_state.pop("fetched_tweets", None)
         try:
             # Get user ID
