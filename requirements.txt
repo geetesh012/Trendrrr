@@ -11,3 +11,4 @@ numpy>=1.26.4
 faker>=25.2.0
 nltk>=3.8.1
 xgboost
+flask
